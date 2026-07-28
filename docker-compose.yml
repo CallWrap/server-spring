@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: callwrap-spring-postgres
+    environment:
+      POSTGRES_DB: callwrap
+      POSTGRES_USER: callwrap
+      POSTGRES_PASSWORD: callwrap
+    ports:
+      - "5432:5432"
+    volumes:
+      - callwrap_pgdata:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: callwrap-spring-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+volumes:
+  callwrap_pgdata:
