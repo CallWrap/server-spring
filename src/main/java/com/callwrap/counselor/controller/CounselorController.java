@@ -13,10 +13,13 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
+
+@Tag(name = "상담사(Counselor)", description = "상담사 본인 정보 조회")
 public class CounselorController {
 
     private final CounselorQueryService counselorQueryService;
 
+    @Operation(summary = "내 정보 조회")
     @GetMapping("/me")
     public CounselorMeResponse me(@AuthenticationPrincipal UUID counselorId) {
         return counselorQueryService.getMe(counselorId);

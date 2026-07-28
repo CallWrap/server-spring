@@ -22,12 +22,16 @@ import java.time.Duration;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+
+@Tag(name = "인증(Auth)", description = "상담사 로그인/토큰 재발급")
+
 public class AuthController {
 
     private static final String REFRESH_TOKEN_COOKIE = "refreshToken";
 
     private final AuthService authService;
 
+    @Operation(summary = "로그인", description = "성공 시 accessToken은 바디로, refreshToken은 HttpOnly 쿠키로 내려간다.")
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         TokenPair tokenPair = authService.loginAndIssueTokens(request);
@@ -37,12 +41,14 @@ public class AuthController {
                 .body(new LoginResponse(tokenPair.accessToken(), tokenPair.accessTokenExpiresIn()));
     }
 
+    @Operation(summary = "토큰 재발급", description = "쿠키의 refreshToken으로 새 accessToken 발급.")
     @PostMapping("/refresh")
     public ResponseEntity<TokenRefreshResponse> refresh(HttpServletRequest request) {
         String refreshToken = extractRefreshToken(request);
         return ResponseEntity.ok(authService.refresh(refreshToken));
     }
 
+    @Operation(summary = "로그아웃", description = "refreshToken 쿠키 만료 처리.")
     @PostMapping("/logout")
     public ResponseEntity<Void> logout() {
         ResponseCookie expired = refreshTokenCookie("", Duration.ZERO);

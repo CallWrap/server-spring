@@ -34,6 +34,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ReviewController {
 
+    @Operation(summary = "검토 생성", description = "사보원이 상담 종료 시 음성파일 URL + 상담사 정보를 넘겨 검토를 생성한다. 즉시 202로 응답하고 처리는 큐 뒤에서 진행된다.")
     private final ReviewCreateService reviewCreateService;
     private final ReviewQueryService reviewQueryService;
     private final ReviewConfirmService reviewConfirmService;
@@ -44,6 +45,7 @@ public class ReviewController {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
+    @Operation(summary = "검토 목록 조회", description = "상태 필터 + 페이지네이션. 목록에는 요약 정보만 내려간다.")
     @GetMapping
     public ReviewListResponse list(
             @RequestParam(name = "status", required = false) CallStatus status,
@@ -53,11 +55,13 @@ public class ReviewController {
         return reviewQueryService.list(status, page, size);
     }
 
+    @Operation(summary = "검토 상세 조회")
     @GetMapping("/{reviewId}")
     public ReviewDetailResponse detail(@PathVariable UUID reviewId) {
         return reviewQueryService.getDetail(reviewId);
     }
 
+    @Operation(summary = "검토 확정", description = "상담사가 AI 분석 결과를 검토 후 확정한다. JWT 인증 필요.")
     @PatchMapping("/{reviewId}/confirm")
     public ReviewConfirmResponse confirm(
             @PathVariable UUID reviewId,
