@@ -18,14 +18,13 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-/**
+/*
  * AI가 채운 후처리 폼. 콜당 1건(call_id UNIQUE)이며, 필드별로 JSONB를 나눠 담는다
- * (한 덩어리 JSONB 대신) — 라벨 체계가 자주 바뀌는 유형/분류/소분류/등급을 각각 독립적으로
- * 갱신·조회할 수 있게 하기 위함. 대시보드 집계는 V1 마이그레이션의 표현식 인덱스
- * ((consultation_type ->> 'value'), (grade ->> 'value'))로 커버한다.
- * <p>
- * confirmed_by_counselor_id / confirmed_at은 상담사가 확정하기 전까지 반드시 NULL이다 —
- * {@link #confirm} 메서드로만 채워지도록 강제해 "AI 초안 == 아직 미확정" 불변식을 지킨다.
+ * — 라벨 체계가 자주 바뀌는 유형/분류/소분류/등급을 각각 독립적으로 갱신·조회할 수 있게 하기 위해서!
+ * 대시보드 집계는 V1 마이그레이션의 표현식 인덱스 ((consultation_type ->> 'value'), (grade ->> 'value'))로 커버한다.
+
+ * confirmed_by_counselor_id / confirmed_at은 상담사가 확정하기 전까지 반드시 NULL이다
+ * {@link #confirm} 메서드로만 채워지도록 강제해놨다
  */
 @Entity
 @Table(name = "analysis_results")

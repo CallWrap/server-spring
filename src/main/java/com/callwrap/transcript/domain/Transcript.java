@@ -17,10 +17,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-/**
+/*
  * 콜 하나의 전사 결과 한 회차. call_id에 UNIQUE를 걸지 않는다 — 재시도마다 새 행을 쌓아
  * "재시도가 실제로 좋아졌는가"를 나중에 되짚을 수 있게 한다 (quality_check_results와 같은 원칙).
- * 그래서 append-only: BaseTimeEntity(updated_at)를 상속하지 않는다.
+ * 그래서 append-only: BaseTimeEntity(updated_at)를 상속하지 않는다.!
  */
 @Entity
 @Table(name = "transcripts")

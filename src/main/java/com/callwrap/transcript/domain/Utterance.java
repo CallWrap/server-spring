@@ -1,9 +1,8 @@
 package com.callwrap.transcript.domain;
 
-/**
+/*
  * 품질 게이트 4개 체크가 전부 이 하나의 구조만 보고 계산 가능하도록 설계된 입력 단위
- * (기존 ai/schemas.py Transcript/Utterance와 동일한 계약). 이노하이 STT로 교체돼도
- * 이 구조만 유지되면 게이트·분석 쪽은 무수정이다.
+ * 이노하이 STT로 교체돼도 게이트·분석 쪽은 수정하지 않아도 된다
  */
 public record Utterance(
         int index,

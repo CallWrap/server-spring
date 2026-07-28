@@ -18,14 +18,11 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import java.util.List;
 import java.util.Map;
 
-/**
- * FastAPI(AI 모델 호출 레이어)와의 HTTP 통신만 책임진다 — "무엇을 판단할지"는 모르고
- * "어떻게 호출할지"만 안다. 오케스트레이션(호출 순서·재시도 판단)은 PipelineOrchestrationService가,
- * 판단 결과 저장은 각 도메인 리포지토리가 맡는다 (단일 책임 분리).
- * <p>
- * WebClient를 .block()으로 쓰는 건 의도적이다 — 앱 전체를 리액티브로 바꾸지 않고, 외부
- * HTTP 호출 지점에서만 WebClient를 쓰는 절충안(Spring MVC + WebClient 조합은 공식적으로도
- * 흔한 패턴).
+/*
+ * FastAPI(AI 모델 호출 레이어)와의 HTTP 통신만 책임진다
+ * 오케스트레이션(호출 순서·재시도 판단)은 PipelineOrchestrationService가, 판단 결과 저장은 각 도메인 리포지토리가 맡도록 설계했다
+ * WebClient를 .block()으로 사용하도록,, — 앱 전체를 리액티브로 바꾸지 않고, 외부 HTTP 호출 지점에서만 WebClient를 쓰는 절충안
+ * (Spring MVC + WebClient 패턴 사용)
  */
 @Component
 @RequiredArgsConstructor

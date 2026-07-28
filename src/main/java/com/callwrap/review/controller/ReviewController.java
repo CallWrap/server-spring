@@ -26,8 +26,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
-/**
- * 컨트롤러는 얇게 유지한다 — 검증·위임만 하고 비즈니스 로직은 각 단일책임 서비스에 둔다.
+/*
+ * 컨트롤러는 검증·위임 - 비즈니스 로직은 각 단일책임 서비스에
  */
 @RestController
 @RequestMapping("/api/reviews")

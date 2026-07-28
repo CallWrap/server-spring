@@ -10,10 +10,10 @@ import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * 신규 음성 도착 이벤트 큐. 진입점(업로드 시점)만 큐잉하고, 그 뒤 STT->화자분리->품질게이트->
- * 분류->요약/후속처리는 컨슈머 안에서 동기 호출 체인으로 처리한다(미해결 질문 #2, 우선 이 방식으로
- * 시작하기로 함 — 단계별 재큐잉은 장애 격리엔 유리하지만 지금 단계에서는 과한 복잡도).
+/*
+ * 신규 음성 도착 이벤트 큐. 진입점(업로드 시점)만 큐잉하고,
+ * 그 뒤 STT->화자분리->품질게이트->분류->요약/후속처리는 컨슈머 안에서 동기 호출 체인으로 처리한다
+ * — 단계별 재큐잉은 장애 격리엔 유리하지만 지금 단계에서는 과한 복잡도를 가진다고 판단했다.
  * 실패 메시지는 DLQ로 보내 유실 없이 확인할 수 있게 한다 (재시도/실패 정책 태스크).
  */
 @Configuration

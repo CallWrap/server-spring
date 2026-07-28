@@ -13,9 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
-/**
- * 검토 "생성"만 책임진다 (조회는 ReviewQueryService, 확정은 ReviewConfirmService).
- * source_request_id UNIQUE 제약으로 사보원 측의 중복 전송(재시도)을 걸러낸다 — 멱등성 보장.
+/*
+ * 검토 "생성" 파트. (조회는 ReviewQueryService, 확정은 ReviewConfirmService).
+ * source_request_id UNIQUE 제약으로 사보원 측의 중복 전송(재시도)을 걸러낸다
  */
 @Service
 @RequiredArgsConstructor

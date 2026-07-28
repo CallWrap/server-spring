@@ -3,9 +3,9 @@ package com.callwrap.transcript.domain;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
-/**
+/*
  * ai/schemas.py의 Speaker(COUNSELOR="상담사", CUSTOMER="고객")와 값이 동일해야 한다.
- * FastAPI가 내려주는 JSON의 speaker 문자열을 그대로 이 enum으로 역직렬화한다.
+ * FastAPI가 내려주는 JSON의 speaker 문자열을 그대로 이 enum으로 역직렬화한다
  */
 public enum Speaker {
     COUNSELOR("상담사"),

@@ -11,9 +11,10 @@ import reactor.netty.http.client.HttpClient;
 
 import java.util.concurrent.TimeUnit;
 
-/**
- * FastAPI 호출 전용 WebClient. 나머지 앱은 서블릿(MVC)로 두고, 이 빈만 논블로킹 클라이언트로
- * 외부 HTTP 호출을 담당한다 — AiServiceClient에서 .block()으로 결과를 받아 기존 MVC 흐름에 맞춘다.
+/*
+ * FastAPI 호출 전용 WebClient. 나머지 앱은 서블릿(MVC)로 두고,
+ * 이 빈만 논블로킹 클라이언트로 외부 HTTP 호출을 담당한다
+ * — .block()으로 결과를 받아 기존 MVC 흐름에 맞춘다.
  */
 @Configuration
 @RequiredArgsConstructor

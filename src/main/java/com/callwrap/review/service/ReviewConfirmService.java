@@ -15,11 +15,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
-/**
- * 확정만 책임진다. confirmed_by_counselor_id/confirmed_at은 AnalysisResult.confirm()을 통해서만
- * 채워진다 — "확정 전엔 반드시 NULL" 불변식을 엔티티 메서드로 강제한다(ERD 리뷰 때 잡은
- * NOT NULL 버그를 코드 레벨에서 다시 한 번 막는 장치).
+/*
+ * confirmed_by_counselor_id/confirmed_at은 AnalysisResult.confirm()을 통해서만
+ * 채워진다 — "확정 전엔 반드시 NULL" 불변식을 엔티티 메서드로 강제한다
  */
+
 @Service
 @RequiredArgsConstructor
 public class ReviewConfirmService {

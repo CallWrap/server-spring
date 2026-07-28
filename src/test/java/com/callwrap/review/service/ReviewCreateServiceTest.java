@@ -24,8 +24,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
- * DB/Spring 컨텍스트 없이 서비스 로직만 검증한다 — 도메인 서비스를 작게 쪼갠 덕분에
- * Mockito만으로 충분히 테스트 가능하다는 걸 보여주는 예시(클린코드/단일책임의 실익).
+ * DB/Spring 컨텍스트 없이 서비스 로직만 검증한다 — 도메인 서비스를 작게 쪼개서
+ * Mockito만으로 충분히 테스트 가능함
  */
 @ExtendWith(MockitoExtension.class)
 class ReviewCreateServiceTest {

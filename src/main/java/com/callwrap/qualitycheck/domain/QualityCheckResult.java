@@ -17,11 +17,12 @@ import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * action은 의도적으로 String으로 둔다 (pass/retry/human_review) — FastAPI 응답 JSON의 값을
- * 그대로 저장하는 통로라, 값 형식이 Python Literal 쪽 계약과 100% 같아야 한다. 서비스 코드에서
- * 분기할 때는 {@link QualityAction#fromValue(String)}로 안전하게 변환해서 쓴다.
+/*
+ * action은 의도적으로 String으로 둔다 (pass/retry/human_review)
+ * — FastAPI 응답 JSON의 값을 그대로 저장하는 통로라, 값 형식이 Python Literal 쪽 계약과 100% 같아야 한다.
+ * 서비스 코드에서 분기할 때는 {@link QualityAction#fromValue(String)}로 안전하게 변환해서 쓴다
  */
+
 @Entity
 @Table(name = "quality_check_results")
 @Getter

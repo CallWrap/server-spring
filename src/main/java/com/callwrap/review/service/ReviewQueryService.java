@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/**
+/*
  * 조회만 책임진다. 전부 @Transactional(readOnly = true) — 대용량 목록 조회 경로에서
  * 불필요한 스냅샷/dirty-checking 비용을 없앤다. 목록 화면은 전사·분석 JSONB 전체를 절대
  * 가져오지 않는다(ReviewSummaryResponse에는 상태값만 있음) — 상세 조회에서만 필요한 걸 편다.

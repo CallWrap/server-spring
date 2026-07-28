@@ -15,10 +15,10 @@ import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
-/**
+/*
  * Authorization 헤더의 Bearer 토큰을 검증해 SecurityContext에 counselorId(UUID)를 심는다.
- * principal을 UUID로 바로 노출해 컨트롤러에서 @AuthenticationPrincipal UUID counselorId로 바로 받는다 —
- * POC 규모에서 굳이 UserDetails 계층을 두지 않는 게 더 클린하다는 판단.
+ * principal을 UUID로 바로 노출해 컨트롤러에서 @AuthenticationPrincipal UUID counselorId로 바로 받는다
+ * — POC 규모에서 굳이 UserDetails 계층을 두지 않는 게 더 클린하다고 판단하였다
  */
 @Component
 @RequiredArgsConstructor

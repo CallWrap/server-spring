@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
-/**
+/*
  * 인증(로그인/토큰 재발급)만 책임진다. 상담사 조회(내 정보)는 CounselorQueryService가 별도로 맡는다.
  */
 @Service

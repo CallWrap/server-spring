@@ -16,14 +16,13 @@ import lombok.NoArgsConstructor;
 
 import java.util.UUID;
 
-/**
- * 통화 한 건. 파이프라인 진행 상태를 추적하는 중심 테이블 — transcripts/quality_check_results/
- * analysis_results가 전부 이 테이블의 id(call_id)에 매달린다.
- * <p>
- * counselorId는 연관관계(@ManyToOne Counselor)로 두지 않고 원시 UUID로만 들고 있다.
+/*
+ * 통화 한 건. 파이프라인 진행 상태를 추적하는 중심 테이블
+ * — transcripts/quality_check_results/analysis_results가 전부 이 테이블의 id(call_id)에 의존
+ * counselorId는 연관관계 (@ManyToOne Counselor)로 두지 않고 원시 UUID로만 들고 있다.
  * 대용량 목록/상세 조회가 가장 빈번한 경로인데, 연관관계로 두면 상담사 이름이 필요 없는 화면에서도
- * 실수로 지연로딩이 터지거나 N+1이 생기기 쉽다. 상담사 정보가 실제로 필요한 조회는
- * 리포지토리에 명시적 JOIN 쿼리를 별도로 만들어 그때만 가져온다.
+ * 실수로 지연로딩이 터지거나 N+1이 생기기 쉽다.
+ * 상담사 정보가 실제로 필요한 조회는 리포지토리에 명시적 JOIN 쿼리를 별도로 만들어 그때만 가져오도록 설계하였다.
  */
 @Entity
 @Table(name = "calls")

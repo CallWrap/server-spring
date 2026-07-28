@@ -32,14 +32,12 @@ import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.function.Supplier;
 
-/**
- * 콜 하나에 대해 STT -> 화자분리 -> 품질게이트 -> 분류3종 -> 요약/후속처리 -> 결과저장까지
- * 순서대로 조율한다. "언제 무엇을 부를지"만 아는 조정자이고, 실제 호출은 AiServiceClient,
- * 저장은 각 도메인 리포지토리가 담당한다.
- * <p>
- * 품질게이트의 action(pass/retry/human_review) 종합 로직 자체는 FastAPI의 /quality-gate
- * 안에서 기존 orchestrator.py를 그대로 재사용해 계산해서 내려준다 — 여기서는 그 결과를
- * 보고 다음 단계로 갈지, 재처리할지, 사람에게 넘길지만 분기한다 (기존 아키텍처 결정 #5 계승).
+/*
+ * 콜 하나에 대해 STT -> 화자분리 -> 품질게이트 -> 분류3종 -> 요약/후속처리 -> 결과저장까지 순서대로 조율한다.
+ * "언제 무엇을 부를지"만 아는 조정자이고, 실제 호출은 AiServiceClient, 저장은 각 도메인 리포지토리가 담당한다.
+ * 품질게이트의 action(pass/retry/human_review) 종합 로직 자체는
+ * FastAPI의 /quality-gate 안에서 기존 orchestrator.py를 그대로 재사용해 계산해서 내려준다
+ * — 여기서는 그 결과를 보고 다음 단계로 갈지, 재처리할지, 사람에게 넘길지만 분기한다
  */
 @Slf4j
 @Service
