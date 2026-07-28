@@ -7,6 +7,8 @@ import com.callwrap.counselor.service.AuthService;
 import com.callwrap.counselor.service.TokenPair;
 import com.callwrap.global.exception.CallWrapException;
 import com.callwrap.global.exception.ErrorCode;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
