@@ -1,7 +1,7 @@
 # 로컬 개발용 기본값. docker-compose.yml의 postgres/rabbitmq 서비스에 맞춰져 있다.
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/callwrap
+    url: jdbc:postgresql://localhost:5433/callwrap
     username: callwrap
     password: callwrap
     hikari:

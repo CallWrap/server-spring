@@ -73,3 +73,16 @@ docker compose up -d          # Postgres 16 + RabbitMQ
   추가.
 - 사보원 -> Spring 검토 생성 엔드포인트의 시스템 간 인증(API Key)은 아직 미구현 (`SecurityConfig`에서
   전체 인증 요구 중).
+
+### DB 구성 확인 + 도커 띄우기
+- spring/docker-compose.yml — Postgres 16(포트 5432, DB/유저/비번 전부 callwrap) + RabbitMQ 3-management(포트 5672, UI 15672)
+- spring/application.yml — hibernate.ddl-auto: validate (Hibernate가 테이블을 직접 안 만들고, Flyway가 만든 스키마와 엔티티가 일치하는지 검증만 함) + flyway.enabled: true, 앱 뜰 때 db/migration/V1__init_schema.sql 자동 실행
+- spring/application-local.yml — 저 compose의 postgres/rabbitmq를 localhost로 바라보게 설정됨 (기본 프로파일이 local)
+
+확인하기
+cd C:\Users\20231\산학협력-callwrap\CallWrap\spring
+docker compose up -d
+docker ps    # callwrap-spring-postgres, callwrap-spring-rabbitmq 떠있는지 확인
+
+테이블 확인
+docker exec -it callwrap-spring-postgres psql -U callwrap -d callwrap -c "\dt"
