@@ -10,6 +10,7 @@ import com.callwrap.review.dto.ReviewListResponse;
 import com.callwrap.review.service.ReviewConfirmService;
 import com.callwrap.review.service.ReviewCreateService;
 import com.callwrap.review.service.ReviewQueryService;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -34,11 +35,11 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ReviewController {
 
-    @Operation(summary = "검토 생성", description = "사보원이 상담 종료 시 음성파일 URL + 상담사 정보를 넘겨 검토를 생성한다. 즉시 202로 응답하고 처리는 큐 뒤에서 진행된다.")
     private final ReviewCreateService reviewCreateService;
     private final ReviewQueryService reviewQueryService;
     private final ReviewConfirmService reviewConfirmService;
 
+    @Operation(summary = "검토 생성", description = "사보원이 상담 종료 시 음성파일 URL + 상담사 정보를 넘겨 검토를 생성한다. 즉시 202로 응답하고 처리는 큐 뒤에서 진행된다.")
     @PostMapping
     public ResponseEntity<ReviewCreateResponse> create(@Valid @RequestBody ReviewCreateRequest request) {
         ReviewCreateResponse response = reviewCreateService.create(request);
