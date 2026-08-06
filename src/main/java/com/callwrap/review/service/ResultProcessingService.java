@@ -1,26 +1,4 @@
-package com.callwrap.pipeline.service;
-
-import com.callwrap.analysis.domain.AnalysisResult;
-import com.callwrap.analysis.domain.PipelineFailure;
-import com.callwrap.analysis.repository.AnalysisResultRepository;
-import com.callwrap.pipeline.messaging.AnalysisPayload;
-import com.callwrap.pipeline.messaging.QualityPayload;
-import com.callwrap.pipeline.messaging.ResultMessage;
-import com.callwrap.qualitycheck.domain.QualityCheckResult;
-import com.callwrap.qualitycheck.repository.QualityCheckResultRepository;
-import com.callwrap.review.domain.Call;
-import com.callwrap.review.domain.CallStatus;
-import com.callwrap.review.repository.CallRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
-import java.util.NoSuchElementException;
-
-public class ResultProcessingService {
-}
-package com.callwrap.pipeline.service;
+package com.callwrap.review.service;
 
 import com.callwrap.analysis.domain.AnalysisResult;
 import com.callwrap.analysis.domain.PipelineFailure;
