@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://callwrap.internal/schema/result-message.schema.json",
+  "title": "ResultMessage",
+  "type": "object",
+  "required": ["schema_version", "call_id", "status", "completed_at"],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["1.0"] },
+    "call_id": { "type": "string", "format": "uuid" },
+    "status": { "type": "string", "enum": ["DONE", "NEEDS_HUMAN_REVIEW", "FAILED"] },
+    "analysis": { "type": ["object", "null"] },
+    "quality": {
+      "type": ["object", "null"],
+      "properties": {
+        "passed": { "type": "boolean" },
+        "failed_checks": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "failures": { "type": "array", "items": { "type": "string" } },
+    "error": { "type": ["string", "null"] },
+    "completed_at": { "type": "string", "format": "date-time" }
+  },
+  "allOf": [
+    { "if": { "properties": { "status": { "const": "DONE" } } }, "then": { "required": ["analysis"] } },
+    { "if": { "properties": { "status": { "const": "NEEDS_HUMAN_REVIEW" } } }, "then": { "required": ["quality"] } },
+    { "if": { "properties": { "status": { "const": "FAILED" } } }, "then": { "required": ["error"] } }
+  ]
+}
