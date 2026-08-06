@@ -31,15 +31,3 @@ management:
   endpoint:
     health:
       show-details: when-authorized
-
-callwrap:
-  jwt:
-    secret: ${JWT_SECRET:please-override-this-in-env-with-a-32-byte-plus-random-secret}
-    access-token-expiration-seconds: 3600
-    refresh-token-expiration-seconds: 1209600
-  ai-service:
-    base-url: ${AI_SERVICE_BASE_URL:http://localhost:8000}
-    connect-timeout-ms: 3000
-    read-timeout-ms: 15000
-  pipeline:
-    max-retry: 2
