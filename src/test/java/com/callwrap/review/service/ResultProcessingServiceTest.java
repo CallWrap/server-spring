@@ -1,4 +1,93 @@
-package com.callwrap.review.service;
+package com.callwrap.pipeline.service;
 
-public class ResultProcessingServiceTest {
+import com.callwrap.analysis.repository.AnalysisResultRepository;
+import com.callwrap.global.common.Judgment;
+import com.callwrap.pipeline.messaging.AnalysisPayload;
+import com.callwrap.pipeline.messaging.QualityPayload;
+import com.callwrap.pipeline.messaging.ResultMessage;
+import com.callwrap.pipeline.messaging.ResultStatus;
+import com.callwrap.qualitycheck.repository.QualityCheckResultRepository;
+import com.callwrap.review.domain.Call;
+import com.callwrap.review.domain.CallStatus;
+import com.callwrap.review.repository.CallRepository;
+import com.callwrap.review.service.ResultProcessingService;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class ResultProcessingServiceTest {
+
+    @Mock private CallRepository callRepository;
+    @Mock private AnalysisResultRepository analysisResultRepository;
+    @Mock private QualityCheckResultRepository qualityCheckResultRepository;
+
+    @Test
+    void DONE이면_분석결과를_저장하고_콜을_DONE으로_전이한다() {
+        Call call = call();
+        when(callRepository.findById(call.getId())).thenReturn(Optional.of(call));
+
+        AnalysisPayload analysis = new AnalysisPayload(
+                Judgment.of("요약", 0.9, List.of(0)), Judgment.of("사용법문의", 0.9, List.of(0)),
+                Judgment.of("결제및비용지급", 0.9, List.of(0)), Judgment.of("결제방법 및 오류", 0.9, List.of(0)),
+                Judgment.of("일반", 0.9, List.of()), Judgment.of(false, 0.9, List.of()), Judgment.of(true, 0.9, List.of()));
+        ResultMessage message = new ResultMessage(
+                "1.0", call.getId(), ResultStatus.DONE, analysis, null, List.of(), null, Instant.now());
+
+        service().process(message);
+
+        verify(analysisResultRepository).save(any());
+        assertThat(call.getStatus()).isEqualTo(CallStatus.DONE);
+    }
+
+    @Test
+    void NEEDS_HUMAN_REVIEW면_실패한_체크를_저장하고_콜을_전이한다() {
+        Call call = call();
+        when(callRepository.findById(call.getId())).thenReturn(Optional.of(call));
+
+        QualityPayload quality = new QualityPayload(false, List.of("check_speaker_overlap", "check_segment_length"));
+        ResultMessage message = new ResultMessage(
+                "1.0", call.getId(), ResultStatus.NEEDS_HUMAN_REVIEW, null, quality, List.of(), null, Instant.now());
+
+        service().process(message);
+
+        verify(qualityCheckResultRepository, times(2)).save(any());
+        assertThat(call.getStatus()).isEqualTo(CallStatus.NEEDS_HUMAN_REVIEW);
+    }
+
+    @Test
+    void FAILED면_저장없이_콜을_FAILED로_전이한다() {
+        Call call = call();
+        when(callRepository.findById(call.getId())).thenReturn(Optional.of(call));
+
+        ResultMessage message = new ResultMessage(
+                "1.0", call.getId(), ResultStatus.FAILED, null, null, List.of(), "AudioNotFound", Instant.now());
+
+        service().process(message);
+
+        verify(analysisResultRepository, org.mockito.Mockito.never()).save(any());
+        assertThat(call.getStatus()).isEqualTo(CallStatus.FAILED);
+    }
+
+    private ResultProcessingService service() {
+        return new ResultProcessingService(callRepository, analysisResultRepository, qualityCheckResultRepository);
+    }
+
+    private Call call() {
+        Call call = Call.builder().counselorId(UUID.randomUUID()).audioPath("a.wav").sourceRequestId("SRC-1").build();
+        org.springframework.test.util.ReflectionTestUtils.setField(call, "id", UUID.randomUUID());
+        return call;
+    }
 }
