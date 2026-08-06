@@ -10,6 +10,7 @@ import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -35,15 +36,19 @@ public class RabbitMQConfig {
     @Bean
     public Binding resultBinding() {
         return BindingBuilder.bind(resultQueue())
-                .to(callwrapExchange())
-                .with(RESULT_ROUTING_KEY);
+            .to(callwrapExchange())
+            .with(RESULT_ROUTING_KEY);
+    }
+
+    @Bean(name = "rabbitObjectMapper")
+    public ObjectMapper rabbitObjectMapper() {
+        return new ObjectMapper()
+            .registerModule(new JavaTimeModule())
+            .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
     }
 
     @Bean
-    public MessageConverter jsonMessageConverter() {
-        ObjectMapper mapper = new ObjectMapper()
-                .registerModule(new JavaTimeModule())
-                .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
-        return new Jackson2JsonMessageConverter(mapper);
+    public MessageConverter jsonMessageConverter(@Qualifier("rabbitObjectMapper") ObjectMapper rabbitObjectMapper) {
+        return new Jackson2JsonMessageConverter(rabbitObjectMapper);
     }
 }

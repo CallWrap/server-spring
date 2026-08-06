@@ -10,7 +10,6 @@ import com.callwrap.qualitycheck.repository.QualityCheckResultRepository;
 import com.callwrap.review.domain.Call;
 import com.callwrap.review.domain.CallStatus;
 import com.callwrap.review.repository.CallRepository;
-import com.callwrap.review.service.ResultProcessingService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;

@@ -1,4 +1,4 @@
-package com.callwrap.review.service;
+package com.callwrap.pipeline.service;
 
 import com.callwrap.analysis.domain.AnalysisResult;
 import com.callwrap.analysis.domain.PipelineFailure;
