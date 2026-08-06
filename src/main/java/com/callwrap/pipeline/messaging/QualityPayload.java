@@ -1,4 +1,9 @@
 package com.callwrap.pipeline.messaging;
 
-public class QualityPayload {
+import java.util.List;
+
+public record QualityPayload(
+        boolean passed,
+        List<String> failedChecks
+) {
 }
