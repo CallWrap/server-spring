@@ -14,6 +14,8 @@ import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 
 @Configuration
 public class RabbitMQConfig {
@@ -41,9 +43,15 @@ public class RabbitMQConfig {
             .with(RESULT_ROUTING_KEY);
     }
 
+    @Bean
+    @Primary
+    public ObjectMapper objectMapper(Jackson2ObjectMapperBuilder builder) {
+        return builder.build();
+    }
+
     @Bean(name = "rabbitObjectMapper")
-    public ObjectMapper rabbitObjectMapper() {
-        return new ObjectMapper()
+    public ObjectMapper rabbitObjectMapper(Jackson2ObjectMapperBuilder builder) {
+        return builder.build()
             .registerModule(new JavaTimeModule())
             .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);

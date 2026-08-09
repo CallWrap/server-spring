@@ -14,6 +14,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.URI;
 import java.util.concurrent.atomic.AtomicLong;
 
 /*
@@ -49,9 +50,9 @@ public class QueueDepthMetrics {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setBasicAuth(username, password);
-            String url = managementBaseUrl + "/api/queues/%2F/" + RabbitMQConfig.RESULT_QUEUE;
+            URI uri = URI.create(managementBaseUrl + "/api/queues/%2F/" + RabbitMQConfig.RESULT_QUEUE);
             ResponseEntity<JsonNode> response = restTemplate.exchange(
-                url, HttpMethod.GET, new HttpEntity<>(headers), JsonNode.class);
+                uri, HttpMethod.GET, new HttpEntity<>(headers), JsonNode.class);
             JsonNode body = response.getBody();
             if (body != null && body.has("messages")) {
                 resultQueueDepth.set(body.get("messages").asLong());

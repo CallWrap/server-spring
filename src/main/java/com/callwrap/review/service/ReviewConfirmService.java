@@ -30,19 +30,20 @@ public class ReviewConfirmService {
     @Transactional
     public ReviewConfirmResponse confirm(UUID reviewId, UUID counselorId, ReviewConfirmRequest request) {
         Call call = callRepository.findById(reviewId)
-                .orElseThrow(() -> new CallWrapException(ErrorCode.REVIEW_NOT_FOUND));
+            .orElseThrow(() -> new CallWrapException(ErrorCode.REVIEW_NOT_FOUND));
 
         AnalysisResult analysisResult = analysisResultRepository.findByCallId(reviewId)
-                .orElseThrow(() -> new CallWrapException(ErrorCode.REVIEW_NOT_FOUND));
+            .orElseThrow(() -> new CallWrapException(ErrorCode.REVIEW_NOT_FOUND));
 
         if (analysisResult.isConfirmed()) {
             throw new CallWrapException(ErrorCode.REVIEW_ALREADY_CONFIRMED);
         }
 
+        analysisResult.applyConfirmedFields(request.confirmedFields());
         analysisResult.confirm(counselorId, request.editedFields());
         call.transitionTo(CallStatus.CONFIRMED);
 
         return new ReviewConfirmResponse(
-                call.getId(), call.getStatus().name(), analysisResult.getConfirmedAt(), counselorId);
+            call.getId(), call.getStatus().name(), analysisResult.getConfirmedAt(), counselorId);
     }
 }
