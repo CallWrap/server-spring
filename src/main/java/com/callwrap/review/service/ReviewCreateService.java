@@ -28,10 +28,12 @@ public class ReviewCreateService {
         }
 
         Call call = Call.builder()
-                .counselorId(UUID.fromString(request.counselorId()))
-                .audioPath(request.audioFileUrl())
-                .sourceRequestId(request.sourceRequestId())
-                .build();
+            .counselorId(UUID.fromString(request.counselorId()))
+            .audioPath(request.audioFileUrl())
+            .sourceRequestId(request.sourceRequestId())
+            .callStartedAt(request.callStartedAt())
+            .callDurationSec(request.callDurationSec())
+            .build();
         callRepository.save(call);
 
         // STT~분석이 전부 FastAPI 쪽에서 비동기로 처리되므로, 응답은 즉시 202로 끝내고
