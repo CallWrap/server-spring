@@ -29,9 +29,14 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class ResultProcessingServiceTest {
 
-    @Mock private CallRepository callRepository;
-    @Mock private AnalysisResultRepository analysisResultRepository;
-    @Mock private QualityCheckResultRepository qualityCheckResultRepository;
+    @Mock
+    private CallRepository callRepository;
+    @Mock
+    private AnalysisResultRepository analysisResultRepository;
+    @Mock
+    private QualityCheckResultRepository qualityCheckResultRepository;
+    @Mock
+    private com.callwrap.pipeline.metrics.PipelineMetrics pipelineMetrics;
 
     @Test
     void DONE이면_분석결과를_저장하고_콜을_DONE으로_전이한다() {
@@ -39,11 +44,11 @@ class ResultProcessingServiceTest {
         when(callRepository.findById(call.getId())).thenReturn(Optional.of(call));
 
         AnalysisPayload analysis = new AnalysisPayload(
-                Judgment.of("요약", 0.9, List.of(0)), Judgment.of("사용법문의", 0.9, List.of(0)),
-                Judgment.of("결제및비용지급", 0.9, List.of(0)), Judgment.of("결제방법 및 오류", 0.9, List.of(0)),
-                Judgment.of("일반", 0.9, List.of()), Judgment.of(false, 0.9, List.of()), Judgment.of(true, 0.9, List.of()));
+            Judgment.of("요약", 0.9, List.of(0)), Judgment.of("사용법문의", 0.9, List.of(0)),
+            Judgment.of("결제및비용지급", 0.9, List.of(0)), Judgment.of("결제방법 및 오류", 0.9, List.of(0)),
+            Judgment.of("일반", 0.9, List.of()), Judgment.of(false, 0.9, List.of()), Judgment.of(true, 0.9, List.of()));
         ResultMessage message = new ResultMessage(
-                "1.0", call.getId(), ResultStatus.DONE, analysis, null, List.of(), null, Instant.now());
+            "1.0", call.getId(), ResultStatus.DONE, analysis, null, List.of(), null, Instant.now());
 
         service().process(message);
 
@@ -58,7 +63,7 @@ class ResultProcessingServiceTest {
 
         QualityPayload quality = new QualityPayload(false, List.of("check_speaker_overlap", "check_segment_length"));
         ResultMessage message = new ResultMessage(
-                "1.0", call.getId(), ResultStatus.NEEDS_HUMAN_REVIEW, null, quality, List.of(), null, Instant.now());
+            "1.0", call.getId(), ResultStatus.NEEDS_HUMAN_REVIEW, null, quality, List.of(), null, Instant.now());
 
         service().process(message);
 
@@ -72,7 +77,7 @@ class ResultProcessingServiceTest {
         when(callRepository.findById(call.getId())).thenReturn(Optional.of(call));
 
         ResultMessage message = new ResultMessage(
-                "1.0", call.getId(), ResultStatus.FAILED, null, null, List.of(), "AudioNotFound", Instant.now());
+            "1.0", call.getId(), ResultStatus.FAILED, null, null, List.of(), "AudioNotFound", Instant.now());
 
         service().process(message);
 
@@ -81,12 +86,13 @@ class ResultProcessingServiceTest {
     }
 
     private ResultProcessingService service() {
-        return new ResultProcessingService(callRepository, analysisResultRepository, qualityCheckResultRepository);
+        return new ResultProcessingService(callRepository, analysisResultRepository, qualityCheckResultRepository, pipelineMetrics);
     }
 
     private Call call() {
         Call call = Call.builder().counselorId(UUID.randomUUID()).audioPath("a.wav").sourceRequestId("SRC-1").build();
         org.springframework.test.util.ReflectionTestUtils.setField(call, "id", UUID.randomUUID());
+        org.springframework.test.util.ReflectionTestUtils.setField(call, "updatedAt", java.time.LocalDateTime.now());
         return call;
     }
 }

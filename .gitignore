@@ -10,3 +10,5 @@ out/
 *.ipr
 *.iws
 .idea/
+**/src/main/resources/application-local.yml
+
