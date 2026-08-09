@@ -31,3 +31,11 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+
+callwrap:
+  audio-storage:
+    bucket: callwrap-audio
+    presign-expiration-seconds: 600
+  jwt:
+    access-token-expiration-seconds: 3600
+    refresh-token-expiration-seconds: 1209600

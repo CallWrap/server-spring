@@ -17,3 +17,11 @@ spring:
 logging:
   level:
     com.callwrap: DEBUG
+
+callwrap:
+  audio-storage:
+    endpoint: http://localhost:9000
+    access-key: minioadmin
+    secret-key: minioadmin
+  jwt:
+    secret: c2FtcGxlLWxvY2FsLWRldi1qd3Qtc2VjcmV0LWtleS1hdC1sZWFzdC0zMi1ieXRlcw==

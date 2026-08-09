@@ -11,11 +11,13 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /*
@@ -26,6 +28,8 @@ import java.util.UUID;
  * confirmed_by_counselor_id / confirmed_at은 상담사가 확정하기 전까지 반드시 NULL이다
  * {@link #confirm} 메서드로만 채워지도록 강제해놨다
  */
+
+@Slf4j
 @Entity
 @Table(name = "analysis_results")
 @Getter
@@ -86,9 +90,9 @@ public class AnalysisResult {
 
     @Builder
     private AnalysisResult(UUID callId, Judgment<Object> summary, Judgment<Object> consultationType,
-                            Judgment<Object> consultationCategory, Judgment<Object> consultationSubcategory,
-                            Judgment<Object> grade, Judgment<Object> needsFollowup, Judgment<Object> needsFaq,
-                            List<PipelineFailure> failures) {
+                           Judgment<Object> consultationCategory, Judgment<Object> consultationSubcategory,
+                           Judgment<Object> grade, Judgment<Object> needsFollowup, Judgment<Object> needsFaq,
+                           List<PipelineFailure> failures) {
         this.callId = callId;
         this.summary = summary;
         this.consultationType = consultationType;
@@ -99,6 +103,27 @@ public class AnalysisResult {
         this.needsFaq = needsFaq;
         this.failures = failures;
         this.createdAt = LocalDateTime.now();
+    }
+
+    public void applyConfirmedFields(Map<String, Object> confirmedFields) {
+        if (confirmedFields == null) {
+            return;
+        }
+        confirmedFields.forEach((field, value) -> {
+            switch (field) {
+                case "type" -> this.consultationType = withConfirmedValue(this.consultationType, value);
+                case "category" -> this.consultationCategory = withConfirmedValue(this.consultationCategory, value);
+                case "grade" -> this.grade = withConfirmedValue(this.grade, value);
+                case "summary" -> this.summary = withConfirmedValue(this.summary, value);
+                case "followup" -> this.needsFollowup = withConfirmedValue(this.needsFollowup, value);
+                default -> log.warn("[review] 알 수 없는 confirmedFields 키 무시됨: {}", field);
+            }
+        });
+    }
+
+    private Judgment<Object> withConfirmedValue(Judgment<Object> original, Object confirmedValue) {
+        List<Integer> evidence = original != null ? original.evidenceIndices() : List.of();
+        return new Judgment<>(confirmedValue, 1.0, evidence);
     }
 
     public void confirm(UUID counselorId, List<String> editedFields) {
