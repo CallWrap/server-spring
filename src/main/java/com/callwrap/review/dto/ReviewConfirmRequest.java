@@ -7,6 +7,7 @@ import java.util.Map;
 
 public record ReviewConfirmRequest(
         @NotNull Map<String, Object> confirmedFields,
-        List<String> editedFields
+        List<String> editedFields,
+        Integer reviewSec
 ) {
 }
