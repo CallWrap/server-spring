@@ -1,10 +1,10 @@
 package com.callwrap.pipeline.messaging;
 
 import com.callwrap.pipeline.messaging.validation.MessageSchemaValidator;
+import com.callwrap.pipeline.metrics.PipelineMetrics;
 import com.callwrap.pipeline.service.ResultProcessingService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.networknt.schema.ValidationMessage;
-import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
@@ -21,7 +21,7 @@ public class ResultMessageListener {
 
     private final ResultProcessingService resultProcessingService;
     private final MessageSchemaValidator schemaValidator;
-    private final MeterRegistry meterRegistry;
+    private final PipelineMetrics pipelineMetrics;
 
     @RabbitListener(queues = RabbitMQConfig.RESULT_QUEUE)
     public void onResult(Message rawMessage) {
@@ -29,16 +29,15 @@ public class ResultMessageListener {
         try {
             node = schemaValidator.parse(rawMessage.getBody());
         } catch (Exception e) {
-            meterRegistry.counter("callwrap_result_schema_violation_total", "reason", "malformed_json").increment();
+            pipelineMetrics.recordResultSchemaViolation("malformed_json");
             log.error("[pipeline] ResultMessage JSON 파싱 실패: {}", e.getMessage());
             throw new AmqpRejectAndDontRequeueException("ResultMessage가 JSON이 아님", e);
         }
 
         Set<ValidationMessage> violations = schemaValidator.validateResultMessage(node);
         if (!violations.isEmpty()) {
-            meterRegistry.counter("callwrap_result_schema_violation_total", "reason", "schema").increment();
+            pipelineMetrics.recordResultSchemaViolation("schema");
             log.error("[pipeline] ResultMessage 스키마 검증 실패: {}", violations);
-            // 무한 재큐잉 루프 막기
             throw new AmqpRejectAndDontRequeueException("ResultMessage 스키마 위반: " + violations);
         }
 

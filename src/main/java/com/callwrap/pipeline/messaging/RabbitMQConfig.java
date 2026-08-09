@@ -1,5 +1,6 @@
 package com.callwrap.pipeline.messaging;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -44,7 +45,8 @@ public class RabbitMQConfig {
     public ObjectMapper rabbitObjectMapper() {
         return new ObjectMapper()
             .registerModule(new JavaTimeModule())
-            .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
+            .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
     @Bean
