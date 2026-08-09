@@ -126,10 +126,14 @@ public class AnalysisResult {
         return new Judgment<>(confirmedValue, 1.0, evidence);
     }
 
-    public void confirm(UUID counselorId, List<String> editedFields) {
+    @Column(name = "review_sec")
+    private Integer reviewSec;
+
+    public void confirm(UUID counselorId, List<String> editedFields, Integer reviewSec) {
         this.confirmedByCounselorId = counselorId;
         this.confirmedAt = LocalDateTime.now();
         this.editedFields = editedFields;
+        this.reviewSec = reviewSec;
     }
 
     public boolean isConfirmed() {

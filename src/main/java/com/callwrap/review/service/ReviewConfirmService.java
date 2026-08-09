@@ -40,7 +40,7 @@ public class ReviewConfirmService {
         }
 
         analysisResult.applyConfirmedFields(request.confirmedFields());
-        analysisResult.confirm(counselorId, request.editedFields());
+        analysisResult.confirm(counselorId, request.editedFields(), request.reviewSec());
         call.transitionTo(CallStatus.CONFIRMED);
 
         return new ReviewConfirmResponse(
