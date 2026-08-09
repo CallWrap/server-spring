@@ -122,7 +122,7 @@ public class AnalysisResult {
     }
 
     private Judgment<Object> withConfirmedValue(Judgment<Object> original, Object confirmedValue) {
-        List<Integer> evidence = original != null ? original.evidenceIndices() : List.of();
+        java.util.List<Integer> evidence = original != null ? original.evidenceIndices() : java.util.List.of();
         return new Judgment<>(confirmedValue, 1.0, evidence);
     }
 
