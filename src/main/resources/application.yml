@@ -31,3 +31,8 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+
+callwrap:
+  audio-storage:
+    bucket: callwrap-audio
+    presign-expiration-seconds: 600

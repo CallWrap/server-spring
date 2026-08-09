@@ -62,6 +62,11 @@ dependencies {
 
     //Maven Central
     implementation 'com.networknt:json-schema-validator:1.5.1'
+
+    // 오디오 업로드용 presigned URL 발급 (MinIO/S3 호환)
+    implementation platform('software.amazon.awssdk:bom:2.28.11')
+    implementation 'software.amazon.awssdk:s3'
+    implementation 'software.amazon.awssdk:s3-presigner'
 }
 
 tasks.named('test') {

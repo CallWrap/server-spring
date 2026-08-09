@@ -13,6 +13,8 @@
 
 ## 아키텍처
 
+Spring 앱은 도커 안이 아니라 호스트에서 ./gradlew bootRun으로 직접 뜨니까, MinIO를 localhost:9000으로 보면 된다.
+
 ```mermaid
 flowchart LR
     Client[상담 데이터 전송] --> Spring
