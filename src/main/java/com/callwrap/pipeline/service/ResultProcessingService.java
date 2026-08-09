@@ -6,6 +6,7 @@ import com.callwrap.analysis.repository.AnalysisResultRepository;
 import com.callwrap.pipeline.messaging.AnalysisPayload;
 import com.callwrap.pipeline.messaging.QualityPayload;
 import com.callwrap.pipeline.messaging.ResultMessage;
+import com.callwrap.pipeline.metrics.PipelineMetrics;
 import com.callwrap.qualitycheck.domain.QualityCheckResult;
 import com.callwrap.qualitycheck.repository.QualityCheckResultRepository;
 import com.callwrap.review.domain.Call;
@@ -16,6 +17,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -28,16 +31,24 @@ public class ResultProcessingService {
     private final AnalysisResultRepository analysisResultRepository;
     private final QualityCheckResultRepository qualityCheckResultRepository;
 
+    private final PipelineMetrics pipelineMetrics; // 필드 추가
+
     @Transactional
     public void process(ResultMessage message) {
         Call call = callRepository.findById(message.callId())
-                .orElseThrow(() -> new NoSuchElementException("존재하지 않는 콜: " + message.callId()));
+            .orElseThrow(() -> new NoSuchElementException("존재하지 않는 콜: " + message.callId()));
+
+        // PROCESSING 전이 시각을 "Job 발행 시각"의 대용으로 쓴다
+        LocalDateTime dispatchedAt = call.getUpdatedAt();
 
         switch (message.status()) {
             case DONE -> handleDone(call, message);
             case NEEDS_HUMAN_REVIEW -> handleNeedsReview(call, message);
             case FAILED -> handleFailed(call, message);
         }
+
+        pipelineMetrics.recordResultReceived(message.status().name());
+        pipelineMetrics.recordProcessingDuration(Duration.between(dispatchedAt, LocalDateTime.now()));
     }
 
     private void handleDone(Call call, ResultMessage message) {
