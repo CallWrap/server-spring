@@ -50,17 +50,24 @@ public class Call extends BaseTimeEntity {
     @Column(name = "source_request_id", nullable = false, unique = true, length = 200)
     private String sourceRequestId;
 
+    @Column(name = "call_started_at")
+    private java.time.LocalDateTime callStartedAt;
+
+    @Column(name = "call_duration_sec")
+    private Integer callDurationSec;
+
     @Builder
-    private Call(UUID counselorId, String audioPath, String sourceRequestId) {
+    private Call(UUID counselorId, String audioPath, String sourceRequestId,
+                 java.time.LocalDateTime callStartedAt, Integer callDurationSec) {
         this.counselorId = counselorId;
         this.audioPath = audioPath;
         this.sourceRequestId = sourceRequestId;
+        this.callStartedAt = callStartedAt;
+        this.callDurationSec = callDurationSec;
         this.status = CallStatus.UPLOADED;
         this.retryCount = 0;
     }
 
-    // 상태 전이는 이 메서드로만 — "진실의 통로를 하나로" 원칙(기존 state.py의
-    // repository.set_status() 원칙을 Java 쪽으로 그대로 계승)
     public void transitionTo(CallStatus next) {
         this.status = next;
     }
