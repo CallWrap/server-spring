@@ -1,0 +1,6 @@
+{
+  "schema_version": "0.9",
+  "call_id": "66666666-6666-6666-6666-666666666666",
+  "audio_uri": "s3://callwrap-audio/wrong-version.wav",
+  "requested_at": "2026-08-19T10:00:00Z"
+}

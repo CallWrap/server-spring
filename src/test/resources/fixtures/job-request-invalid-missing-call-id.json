@@ -1,0 +1,5 @@
+{
+  "schema_version": "1.0",
+  "audio_uri": "s3://callwrap-audio/missing-call-id.wav",
+  "requested_at": "2026-08-19T10:00:00Z"
+}
