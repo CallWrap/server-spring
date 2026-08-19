@@ -1,10 +1,10 @@
 # CallWrap — Backend (server-spring)
 
-한국사회보장정보원 산학협력 프로젝트 **CallWrap**의 데이터/오케스트레이션 서버.
+장애인활동지원 상담센터의 상담 후처리 업무를 자동화하는 데이터/오케스트레이션 서버입니다.
 
-CallWrap은 장애인활동지원 상담센터의 **상담 후처리 업무를 자동화**하는 시스템이다. 상담사가 통화가 끝날 때마다 수기로 작성하던 요약·상담분류·상담등급·후속처리 필요 여부 판단을 AI 파이프라인이 초안으로 만들어 두면, 상담사는 그 결과를 검토·수정하고 확정만 하면 된다. 여기에 더해, 반복적으로 들어오는 문의를 모아 **FAQ 지식베이스를 자동으로 축적**한다. 목표는 상담사의 사후처리 업무 부담을 줄이고, 상담 데이터를 구조화된 형태로 표준화·축적하는 것이다.
+상담사가 통화 종료 후 수기로 작성하던 요약, 상담 분류, 등급 산정, 후속 조치 여부 판단 등의 과정을 AI 파이프라인이 초안으로 생성합니다. 상담사는 생성된 결과를 검토·수정하여 간편하게 확정할 수 있으며, 반복되는 문의를 모아 FAQ 지식베이스를 자동 축적합니다. 이를 통해 상담사의 반복 업무 부담을 줄이고 상담 데이터를 구조화된 형태로 표준화하는 것을 목표로 합니다.
 
-이 레포는 시스템을 이루는 4개 저장소 중 **Backend(Spring Boot)** 를 담당한다. 이 레포는 AI 연산(음성인식·화자분리·분류·요약·감정분석)을 직접 수행하지 않는다 — 콜 접수, 사용자 인증, 파이프라인 오케스트레이션, 검토 워크플로우, 결과 영구 저장, 운영 모니터링을 맡고, AI 연산 자체는 `server-fastapi`에 비동기로 위임한다.
+이 레포지토리는 시스템의 4개 핵심 저장소 중 Backend(Spring Boot) 를 담당합니다. 음성인식, 화자 분리, 분류 및 요약 등의 AI 연산은 직접 수행하지 않으며, 콜 접수, 사용자 인증, 파이프라인 오케스트레이션, 검토 워크플로우, 결과 저장 및 모니터링을 맡고 AI 연산은 server-fastapi에 비동기로 위임합니다.
 
 | 저장소 | 역할 | 스택 |
 |---|---|---|
@@ -13,38 +13,28 @@ CallWrap은 장애인활동지원 상담센터의 **상담 후처리 업무를 �
 | `AI-model` (`callwrap-ai`) | 실제 AI 연산 라이브러리 — 분류(klue-roberta), 상담등급·요약·후속처리·FAQ필요여부(EXAONE, 로컬 Ollama) | Python 라이브러리, `server-fastapi`가 git 의존성으로 설치 |
 | `web` | 상담사 검토 화면, 관리자 대시보드(FAQ 검수 포함) | TypeScript |
 
-## 프로젝트 목적
-
-기존에는 상담사가 통화 종료 후 상담 유형 분류, 등급 판정, 요약, 후속조치 필요 여부를 모두 수작업으로 기록했다. CallWrap은 이 과정에
-
-- **AI 초안 생성**: 통화 녹음만 있으면 파이프라인이 상담분류(중/소분류)·상담등급·요약(요청제목/문의내용/처리내용)·후속처리 필요 여부·FAQ 반영 필요 여부를 자동으로 판정해 초안을 만든다.
-- **사람의 최종 확인**: 상담사는 AI 판정을 검토 화면에서 확인·수정한 뒤 확정한다. AI 확신도가 낮거나 일부 항목 판정에 실패해도, 나머지 결과는 그대로 상담사에게 보여주고 부족한 부분만 표시한다(부분 실패 허용 설계).
-- **지식 축적**: "FAQ 반영 필요" 로 판정된 콜들을 모아 EXAONE으로 대표 질문·답변을 합성하고, 상담사 검수를 거쳐 상담센터 공통 FAQ로 게시한다.
-
-를 통해 상담사의 반복 업무를 줄이고, 상담 데이터를 검색·통계 가능한 구조로 표준화하는 것을 목표로 한다.
-
 ## 전체 아키텍처
 
 ```mermaid
 flowchart LR
-    Web[Web — 상담사 검토 화면 / 관리자 대시보드] -->|콜 접수 / 검토 / 확정| Spring
-    Spring -->|presigned URL| S3[(MinIO / S3 — 오디오 저장)]
+    Web["Web - 상담사 검토 화면 / 관리자 대시보드"] -->|콜 접수 / 검토 / 확정| Spring
+    Spring -->|presigned URL| S3[("MinIO / S3 - 오디오 저장")]
 
     subgraph Backend["server-spring"]
-        Spring[Spring Boot]
-        PG[(PostgreSQL)]
+        Spring["Spring Boot"]
+        PG[("PostgreSQL")]
         Spring --> PG
     end
 
-    Spring -- "① JobRequest 발행 (schema 검증)" --> MQ[(RabbitMQ<br/>callwrap topic exchange)]
-    MQ -- "② callwrap.jobs 소비" --> Celery[Celery Worker<br/>server-fastapi]
-    Celery -- "③ analyze() 호출" --> AI[callwrap-ai 라이브러리<br/>klue-roberta 분류 · EXAONE(Ollama)]
-    Celery -- "④ ResultMessage 발행 (schema 검증)" --> MQ
-    MQ -- "⑤ result-queue 소비" --> Spring
+    Spring -- "1) JobRequest 발행 - schema 검증" --> MQ[("RabbitMQ<br/>callwrap topic exchange")]
+    MQ -- "2) callwrap.jobs 소비" --> Celery["Celery Worker<br/>server-fastapi"]
+    Celery -- "3) analyze 호출" --> AI["callwrap-ai 라이브러리<br/>klue-roberta 분류, EXAONE 로컬 Ollama"]
+    Celery -- "4) ResultMessage 발행 - schema 검증" --> MQ
+    MQ -- "5) result-queue 소비" --> Spring
 
-    MQ -.실패시.-> DLQ[(DLQ<br/>지수 백오프 재시도 후 격리)]
+    MQ -.실패시.-> DLQ[("DLQ<br/>지수 백오프 재시도 후 격리")]
 
-    Spring -- "⑥ FAQ 배치 트리거" --> FastAPI[server-fastapi]
+    Spring -- "6) FAQ 배치 트리거" --> FastAPI["server-fastapi"]
     FastAPI -- "후보 조회" --> Spring
     FastAPI -- "EXAONE 배치 합성" --> AI
     FastAPI -- "FAQ 초안 저장" --> Spring
@@ -82,6 +72,8 @@ UPLOADED → PROCESSING → DONE / NEEDS_HUMAN_REVIEW / FAILED → CONFIRMED
 6. **운영 가시성** — `/actuator/prometheus`에서 큐 적재량(Job 큐·Result 큐 모두, RabbitMQ Management API를 10초 주기로 폴링), Job 발행 건수, 결과 수신 건수(상태별), 처리 소요시간(p50/p95/p99), 스키마 위반 건수를 노출한다. Grafana 대시보드 시각화는 다음 단계.
 7. **API 문서화** — springdoc-openapi 기반 Swagger UI, JWT bearer 인증 스킴 포함.
 8. **부하 테스트** — `loadtest/`에 Locust/k6 기반 시나리오(콜 접수→처리 완료까지의 파이프라인 부하) 준비.
+9. **실시간 갱신(SSE)** — 콜 상태가 바뀔 때마다(`PROCESSING`/`DONE`/`NEEDS_HUMAN_REVIEW`/`FAILED`/`CONFIRMED`) `/api/reviews/stream`으로 이벤트를 밀어줘서, 상담사 화면이 폴링 없이 대기열을 갱신한다. `@TransactionalEventListener(AFTER_COMMIT)`로 트랜잭션이 실제로 커밋된 뒤에만 내보낸다.
+10. **관리자 대시보드 집계** — 상태별·등급별·유형별 건수와 평균 검토 시간을 `/api/reviews/stats`에서 DB `GROUP BY`/`AVG`로 직접 계산해 반환한다. 목록 API로 콜을 가져와 프론트에서 세는 대신 이 엔드포인트를 쓴다.
 
 ## 기술 스택
 
@@ -106,6 +98,8 @@ UPLOADED → PROCESSING → DONE / NEEDS_HUMAN_REVIEW / FAILED → CONFIRMED
 | POST | `/api/reviews` | 콜 접수 — 즉시 202 반환, 분석은 비동기로 트리거 |
 | GET | `/api/reviews` | 검토 목록 조회 (상태 필터, 페이지네이션) |
 | GET | `/api/reviews/{reviewId}` | 검토 상세 조회 |
+| GET | `/api/reviews/stats` | 관리자 대시보드 집계 (상태·등급·유형별 건수, 평균 검토 시간) |
+| GET | `/api/reviews/stream` | 콜 상태 변경 실시간 스트림 (SSE) |
 | PATCH | `/api/reviews/{reviewId}/confirm` | 검토 확정 |
 | POST | `/api/faq-entries/generate-batch` | FAQ 배치 생성 트리거 (FastAPI 호출) |
 | GET | `/api/faq-entries` | FAQ 목록 조회 (상태 필터) |
@@ -123,6 +117,7 @@ UPLOADED → PROCESSING → DONE / NEEDS_HUMAN_REVIEW / FAILED → CONFIRMED
 - **단일 책임** — `review` 도메인 안에서도 생성(`ReviewCreateService`)·조회(`ReviewQueryService`)·확정(`ReviewConfirmService`)을 별도 클래스로 분리했다. `faq` 도메인도 후보 집계(`FaqCandidateService`)·배치 트리거(`FaqBatchTriggerService`)·초안 관리(`FaqEntryService`)를 나눴다.
 - **불변식은 엔티티가 스스로 지킨다** — `AnalysisResult.confirm()`을 통해서만 확정 정보가 채워지고, `Call.transitionTo()`를 통해서만 상태가 바뀌고, `FaqEntry.publish()`/`discard()`를 통해서만 FAQ 상태가 바뀐다.
 - **메시지 계약을 코드가 강제한다** — JobRequest/ResultMessage 모두 JSON Schema로 검증하고, 위반 시 예외를 던지고 메트릭을 남긴다. 스키마 파일(`schema/*.schema.json`)이 곧 계약 문서다.
+- **부분 실패를 허용한다** — AI 판정 중 일부(등급·분류 등)가 확신도 부족이나 모델 오류로 실패해도 나머지 결과는 그대로 상담사에게 전달한다. 실패한 항목만 `failures`에 표시되고 전체 분석이 막히지 않는다.
 - **대용량 조회 경로 최적화**
   - JPA `open-in-view: false`, batch insert/update(`hibernate.jdbc.batch_size`) 설정
   - `calls.status`, `analysis_results`의 JSONB 값(`consultation_type`, `grade` 등)에 표현식 인덱스 적용
@@ -178,4 +173,4 @@ Spring 앱은 도커 안이 아니라 호스트에서 `./gradlew bootRun`으로 
 - **상담유형(`consultation_type`) 판정은 아직 실제 모델과 연결되지 않은 자리 표시자** — SR유형 8종 분류 모델이 팀 내 코드 리뷰 중이며, 병합 전까지는 값이 고정된 채로 내려온다.
 - **메시지 계약 검증 로직은 구현되어 있으나 fixture 기반 단위테스트는 보강 필요**
 - **Grafana 대시보드 미구축** — 메트릭 자체는 Prometheus로 노출 중이지만 시각화 대시보드는 다음 단계 작업이다.
-- **`call_id` 멱등 처리, 관리자 대시보드 집계 쿼리 최적화**는 별도 이슈로 진행 중
+- **`call_id` 멱등 처리**는 별도 이슈로 진행 중
