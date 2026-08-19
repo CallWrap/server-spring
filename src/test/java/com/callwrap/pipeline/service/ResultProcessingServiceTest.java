@@ -10,6 +10,7 @@ import com.callwrap.qualitycheck.repository.QualityCheckResultRepository;
 import com.callwrap.review.domain.Call;
 import com.callwrap.review.domain.CallStatus;
 import com.callwrap.review.repository.CallRepository;
+import com.callwrap.transcript.repository.TranscriptRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -36,6 +37,8 @@ class ResultProcessingServiceTest {
     @Mock
     private QualityCheckResultRepository qualityCheckResultRepository;
     @Mock
+    private TranscriptRepository transcriptRepository;
+    @Mock
     private com.callwrap.pipeline.metrics.PipelineMetrics pipelineMetrics;
 
     @Test
@@ -48,7 +51,7 @@ class ResultProcessingServiceTest {
             Judgment.of("결제및비용지급", 0.9, List.of(0)), Judgment.of("결제방법 및 오류", 0.9, List.of(0)),
             Judgment.of("일반", 0.9, List.of()), Judgment.of(false, 0.9, List.of()), Judgment.of(true, 0.9, List.of()));
         ResultMessage message = new ResultMessage(
-            "1.0", call.getId(), ResultStatus.DONE, analysis, null, List.of(), null, Instant.now());
+            "1.0", call.getId(), ResultStatus.DONE, analysis, null, null, List.of(), null, Instant.now());
 
         service().process(message);
 
@@ -63,7 +66,7 @@ class ResultProcessingServiceTest {
 
         QualityPayload quality = new QualityPayload(false, List.of("check_speaker_overlap", "check_segment_length"));
         ResultMessage message = new ResultMessage(
-            "1.0", call.getId(), ResultStatus.NEEDS_HUMAN_REVIEW, null, quality, List.of(), null, Instant.now());
+            "1.0", call.getId(), ResultStatus.NEEDS_HUMAN_REVIEW, null, null, quality, List.of(), null, Instant.now());
 
         service().process(message);
 
@@ -77,7 +80,7 @@ class ResultProcessingServiceTest {
         when(callRepository.findById(call.getId())).thenReturn(Optional.of(call));
 
         ResultMessage message = new ResultMessage(
-            "1.0", call.getId(), ResultStatus.FAILED, null, null, List.of(), "AudioNotFound", Instant.now());
+            "1.0", call.getId(), ResultStatus.FAILED, null, null, null, List.of(), "AudioNotFound", Instant.now());
 
         service().process(message);
 
@@ -86,7 +89,8 @@ class ResultProcessingServiceTest {
     }
 
     private ResultProcessingService service() {
-        return new ResultProcessingService(callRepository, analysisResultRepository, qualityCheckResultRepository, pipelineMetrics);
+        return new ResultProcessingService(
+            callRepository, analysisResultRepository, qualityCheckResultRepository, transcriptRepository, pipelineMetrics);
     }
 
     private Call call() {

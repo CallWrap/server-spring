@@ -12,6 +12,8 @@ import com.callwrap.qualitycheck.repository.QualityCheckResultRepository;
 import com.callwrap.review.domain.Call;
 import com.callwrap.review.domain.CallStatus;
 import com.callwrap.review.repository.CallRepository;
+import com.callwrap.transcript.domain.Transcript;
+import com.callwrap.transcript.repository.TranscriptRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,6 +32,7 @@ public class ResultProcessingService {
     private final CallRepository callRepository;
     private final AnalysisResultRepository analysisResultRepository;
     private final QualityCheckResultRepository qualityCheckResultRepository;
+    private final TranscriptRepository transcriptRepository;
 
     private final PipelineMetrics pipelineMetrics; // 필드 추가
 
@@ -55,6 +58,14 @@ public class ResultProcessingService {
         AnalysisPayload analysis = message.analysis();
         if (analysis == null) {
             throw new IllegalStateException("status=DONE인데 analysis가 비어있음: callId=" + call.getId());
+        }
+
+        if (message.transcript() != null) {
+            transcriptRepository.save(Transcript.builder()
+                .callId(call.getId())
+                .utterances(message.transcript().utterances())
+                .retryIteration(call.getRetryCount())
+                .build());
         }
 
         AnalysisResult result = AnalysisResult.builder()

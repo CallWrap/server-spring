@@ -10,6 +10,7 @@
     "call_id": { "type": "string", "format": "uuid" },
     "status": { "type": "string", "enum": ["DONE", "NEEDS_HUMAN_REVIEW", "FAILED"] },
     "analysis": { "type": ["object", "null"] },
+    "transcript": { "type": ["object", "null"] },
     "quality": {
       "type": ["object", "null"],
       "properties": {

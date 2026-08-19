@@ -9,6 +9,7 @@ public record ResultMessage(
         UUID callId,
         ResultStatus status,
         AnalysisPayload analysis,
+        TranscriptPayload transcript,
         QualityPayload quality,
         List<String> failures,
         String error,
