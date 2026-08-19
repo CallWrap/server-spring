@@ -11,6 +11,8 @@ import com.callwrap.review.dto.ReviewDetailResponse;
 import com.callwrap.review.dto.ReviewListResponse;
 import com.callwrap.review.dto.ReviewSummaryResponse;
 import com.callwrap.review.repository.CallRepository;
+import com.callwrap.transcript.domain.Utterance;
+import com.callwrap.transcript.repository.TranscriptRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -35,6 +37,7 @@ public class ReviewQueryService {
 
     private final CallRepository callRepository;
     private final AnalysisResultRepository analysisResultRepository;
+    private final TranscriptRepository transcriptRepository;
 
     @Transactional(readOnly = true)
     public ReviewListResponse list(CallStatus status, int page, int size) {
@@ -76,6 +79,11 @@ public class ReviewQueryService {
 
         AnalysisResult analysis = analysisResultRepository.findByCallId(reviewId).orElse(null);
 
+        // 재시도가 여러 번 있었어도 화면엔 가장 최근 시도의 전사만 보여주면 된다.
+        List<Utterance> transcript = transcriptRepository.findFirstByCallIdOrderByRetryIterationDesc(reviewId)
+            .map(com.callwrap.transcript.domain.Transcript::getUtterances)
+            .orElse(List.of());
+
         ReviewDetailResponse.ClassificationView classification = new ReviewDetailResponse.ClassificationView(
             analysis != null ? analysis.getConsultationType() : null,
             analysis != null ? analysis.getConsultationCategory() : null,
@@ -93,6 +101,7 @@ public class ReviewQueryService {
             analysis != null ? analysis.getSummary() : null,
             analysis != null ? analysis.getNeedsFollowup() : null,
             analysis != null ? analysis.getNeedsFaq() : null,
+            transcript,
             analysis != null ? toFailureMessages(analysis) : List.of(),
             analysis != null ? analysis.getConfirmedAt() : null,
             analysis != null ? analysis.getConfirmedByCounselorId() : null
@@ -103,8 +112,10 @@ public class ReviewQueryService {
         if (analysis.getFailures() == null) {
             return List.of();
         }
+        // 계약서 failures는 모듈명 문자열만 준다 (reason 없음, 항상 null) — "summarize: null"처럼
+        // 보이지 않도록 모듈명만 내려준다.
         return analysis.getFailures().stream()
-            .map(f -> f.stage() + ": " + f.reason())
+            .map(com.callwrap.analysis.domain.PipelineFailure::stage)
             .toList();
     }
 }

@@ -48,3 +48,7 @@ callwrap:
   jwt:
     access-token-expiration-seconds: 3600
     refresh-token-expiration-seconds: 1209600
+  fastapi:
+    # FAQ 배치 생성 트리거(POST /internal/faq/generate-batch)를 호출할 때만 쓴다.
+    # FastAPI의 api 서비스가 host에 노출한 포트(docker-compose.yml의 "8001:8000") 기준.
+    base-url: ${FASTAPI_BASE_URL:http://localhost:8001}

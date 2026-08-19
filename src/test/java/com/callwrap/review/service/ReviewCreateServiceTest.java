@@ -36,7 +36,7 @@ class ReviewCreateServiceTest {
     @Test
     void 중복된_sourceRequestId면_Job을_발행하지_않고_예외를_던진다() {
         var request = new ReviewCreateRequest(
-                "SRC-DUP", UUID.randomUUID().toString(), "https://audio/1.wav", LocalDateTime.now());
+                "SRC-DUP", UUID.randomUUID().toString(), "https://audio/1.wav", LocalDateTime.now(), 300);
         when(callRepository.existsBySourceRequestId("SRC-DUP")).thenReturn(true);
 
         var service = new ReviewCreateService(callRepository, jobDispatchService);
@@ -53,7 +53,7 @@ class ReviewCreateServiceTest {
     void 정상_요청이면_콜을_저장하고_Job을_발행한다() {
         UUID counselorId = UUID.randomUUID();
         var request = new ReviewCreateRequest(
-                "SRC-NEW", counselorId.toString(), "https://audio/2.wav", LocalDateTime.now());
+                "SRC-NEW", counselorId.toString(), "https://audio/2.wav", LocalDateTime.now(), 300);
         when(callRepository.existsBySourceRequestId("SRC-NEW")).thenReturn(false);
         when(callRepository.save(any(Call.class))).thenAnswer(invocation -> {
             Call saved = invocation.getArgument(0);

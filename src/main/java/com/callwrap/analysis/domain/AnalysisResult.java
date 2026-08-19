@@ -88,6 +88,10 @@ public class AnalysisResult {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    /** FAQ 배치 생성에 이미 재료로 쓰였는지. null이면 아직 후보 대상 (FaqCandidateService가 거른다). */
+    @Column(name = "faq_processed_at")
+    private LocalDateTime faqProcessedAt;
+
     @Builder
     private AnalysisResult(UUID callId, Judgment<Object> summary, Judgment<Object> consultationType,
                            Judgment<Object> consultationCategory, Judgment<Object> consultationSubcategory,
@@ -113,12 +117,19 @@ public class AnalysisResult {
             switch (field) {
                 case "type" -> this.consultationType = withConfirmedValue(this.consultationType, value);
                 case "category" -> this.consultationCategory = withConfirmedValue(this.consultationCategory, value);
+                case "subcategory" -> this.consultationSubcategory = withConfirmedValue(this.consultationSubcategory, value);
                 case "grade" -> this.grade = withConfirmedValue(this.grade, value);
                 case "summary" -> this.summary = withConfirmedValue(this.summary, value);
                 case "followup" -> this.needsFollowup = withConfirmedValue(this.needsFollowup, value);
+                case "faq" -> this.needsFaq = withConfirmedValue(this.needsFaq, value);
                 default -> log.warn("[review] 알 수 없는 confirmedFields 키 무시됨: {}", field);
             }
         });
+    }
+
+    /** FAQ 배치가 이 콜을 재료로 썼음을 표시 — 다음 배치 후보 조회에서 제외된다. */
+    public void markFaqProcessed() {
+        this.faqProcessedAt = LocalDateTime.now();
     }
 
     private Judgment<Object> withConfirmedValue(Judgment<Object> original, Object confirmedValue) {
