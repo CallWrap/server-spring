@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0",
+  "call_id": "33333333-3333-3333-3333-333333333333",
+  "status": "DONE",
+  "transcript": null,
+  "quality": null,
+  "failures": [],
+  "error": null,
+  "completed_at": "2026-08-19T10:05:00Z"
+}

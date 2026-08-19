@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "call_id": "22222222-2222-2222-2222-222222222222",
+  "status": "DONE",
+  "analysis": {
+    "summary": { "value": { "title": "t", "inquiry": "i", "resolution": "r" }, "confidence": 0.9, "evidence_indices": [0] },
+    "consultation_type": { "value": "ETC", "confidence": 0.0, "evidence_indices": [] },
+    "consultation_category": null,
+    "consultation_subcategory": null,
+    "grade": null,
+    "needs_followup": { "value": false, "confidence": 0.9, "evidence_indices": [] },
+    "needs_faq": { "value": true, "confidence": 0.9, "evidence_indices": [] }
+  },
+  "transcript": null,
+  "quality": null,
+  "failures": ["classify_category", "classify_subcategory", "grade"],
+  "error": null,
+  "completed_at": "2026-08-19T10:05:00Z"
+}
