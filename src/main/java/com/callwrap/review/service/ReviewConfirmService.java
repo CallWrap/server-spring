@@ -4,12 +4,14 @@ import com.callwrap.analysis.domain.AnalysisResult;
 import com.callwrap.analysis.repository.AnalysisResultRepository;
 import com.callwrap.global.exception.CallWrapException;
 import com.callwrap.global.exception.ErrorCode;
+import com.callwrap.pipeline.event.CallStatusChangedEvent;
 import com.callwrap.review.domain.Call;
 import com.callwrap.review.domain.CallStatus;
 import com.callwrap.review.dto.ReviewConfirmRequest;
 import com.callwrap.review.dto.ReviewConfirmResponse;
 import com.callwrap.review.repository.CallRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +28,7 @@ public class ReviewConfirmService {
 
     private final CallRepository callRepository;
     private final AnalysisResultRepository analysisResultRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public ReviewConfirmResponse confirm(UUID reviewId, UUID counselorId, ReviewConfirmRequest request) {
@@ -42,6 +45,8 @@ public class ReviewConfirmService {
         analysisResult.applyConfirmedFields(request.confirmedFields());
         analysisResult.confirm(counselorId, request.editedFields(), request.reviewSec());
         call.transitionTo(CallStatus.CONFIRMED);
+        // 같은 큐를 보는 다른 상담사 화면에서도 이 콜이 바로 사라지도록(중복 작업 방지)
+        eventPublisher.publishEvent(new CallStatusChangedEvent(call.getId(), CallStatus.CONFIRMED));
 
         return new ReviewConfirmResponse(
             call.getId(), call.getStatus().name(), analysisResult.getConfirmedAt(), counselorId);

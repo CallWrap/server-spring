@@ -3,6 +3,7 @@ package com.callwrap.pipeline.service;
 import com.callwrap.analysis.domain.AnalysisResult;
 import com.callwrap.analysis.domain.PipelineFailure;
 import com.callwrap.analysis.repository.AnalysisResultRepository;
+import com.callwrap.pipeline.event.CallStatusChangedEvent;
 import com.callwrap.pipeline.messaging.AnalysisPayload;
 import com.callwrap.pipeline.messaging.QualityPayload;
 import com.callwrap.pipeline.messaging.ResultMessage;
@@ -16,6 +17,7 @@ import com.callwrap.transcript.domain.Transcript;
 import com.callwrap.transcript.repository.TranscriptRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +37,7 @@ public class ResultProcessingService {
     private final TranscriptRepository transcriptRepository;
 
     private final PipelineMetrics pipelineMetrics; // 필드 추가
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public void process(ResultMessage message) {
@@ -49,6 +52,7 @@ public class ResultProcessingService {
             case NEEDS_HUMAN_REVIEW -> handleNeedsReview(call, message);
             case FAILED -> handleFailed(call, message);
         }
+        eventPublisher.publishEvent(new CallStatusChangedEvent(call.getId(), call.getStatus()));
 
         pipelineMetrics.recordResultReceived(message.status().name());
         pipelineMetrics.recordProcessingDuration(Duration.between(dispatchedAt, LocalDateTime.now()));
