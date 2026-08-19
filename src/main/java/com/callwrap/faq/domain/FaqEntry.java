@@ -34,7 +34,7 @@ public class FaqEntry {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String subcategory;
 
     @Column(columnDefinition = "text", nullable = false)
@@ -52,7 +52,7 @@ public class FaqEntry {
     private List<UUID> sampleCallIds;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 20)
     private FaqStatus status;
 
     @Column(name = "generated_at", nullable = false, updatable = false)
