@@ -19,6 +19,15 @@ spring:
     locations: classpath:db/migration
   jackson:
     default-property-inclusion: non_null
+  rabbitmq: # 중복 작성되었던 spring 하위 속성을 하나로 병합
+    listener:
+      simple:
+        retry:
+          enabled: true
+          initial-interval: 2000
+          multiplier: 2.0
+          max-interval: 30000
+          max-attempts: 4
 
 server:
   port: 8080

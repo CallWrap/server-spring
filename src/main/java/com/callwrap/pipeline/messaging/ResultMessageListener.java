@@ -12,6 +12,7 @@ import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
+import java.util.NoSuchElementException;
 import java.util.Set;
 
 @Slf4j
@@ -43,6 +44,12 @@ public class ResultMessageListener {
 
         ResultMessage resultMessage = schemaValidator.toResultMessage(node);
         log.info("[pipeline] 결과 수신 callId={} status={}", resultMessage.callId(), resultMessage.status());
-        resultProcessingService.process(resultMessage);
+
+        try {
+            resultProcessingService.process(resultMessage);
+        } catch (NoSuchElementException e) {
+            log.error("[pipeline] 존재하지 않는 콜에 대한 결과 수신, DLQ로: callId={}", resultMessage.callId());
+            throw new AmqpRejectAndDontRequeueException("존재하지 않는 콜: " + resultMessage.callId(), e);
+        }
     }
 }
