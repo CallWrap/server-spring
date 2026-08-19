@@ -2,6 +2,7 @@ package com.callwrap.pipeline.service;
 
 import com.callwrap.analysis.repository.AnalysisResultRepository;
 import com.callwrap.global.common.Judgment;
+import com.callwrap.pipeline.event.CallStatusChangedEvent;
 import com.callwrap.pipeline.messaging.AnalysisPayload;
 import com.callwrap.pipeline.messaging.QualityPayload;
 import com.callwrap.pipeline.messaging.ResultMessage;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Instant;
 import java.util.List;
@@ -40,6 +42,8 @@ class ResultProcessingServiceTest {
     private TranscriptRepository transcriptRepository;
     @Mock
     private com.callwrap.pipeline.metrics.PipelineMetrics pipelineMetrics;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @Test
     void DONE이면_분석결과를_저장하고_콜을_DONE으로_전이한다() {
@@ -57,6 +61,7 @@ class ResultProcessingServiceTest {
 
         verify(analysisResultRepository).save(any());
         assertThat(call.getStatus()).isEqualTo(CallStatus.DONE);
+        verify(eventPublisher).publishEvent(new CallStatusChangedEvent(call.getId(), CallStatus.DONE));
     }
 
     @Test
@@ -90,7 +95,8 @@ class ResultProcessingServiceTest {
 
     private ResultProcessingService service() {
         return new ResultProcessingService(
-            callRepository, analysisResultRepository, qualityCheckResultRepository, transcriptRepository, pipelineMetrics);
+            callRepository, analysisResultRepository, qualityCheckResultRepository, transcriptRepository,
+            pipelineMetrics, eventPublisher);
     }
 
     private Call call() {
