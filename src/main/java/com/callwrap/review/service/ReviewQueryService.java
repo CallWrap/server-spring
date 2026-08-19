@@ -112,8 +112,10 @@ public class ReviewQueryService {
         if (analysis.getFailures() == null) {
             return List.of();
         }
+        // 계약서 failures는 모듈명 문자열만 준다 (reason 없음, 항상 null) — "summarize: null"처럼
+        // 보이지 않도록 모듈명만 내려준다.
         return analysis.getFailures().stream()
-            .map(f -> f.stage() + ": " + f.reason())
+            .map(com.callwrap.analysis.domain.PipelineFailure::stage)
             .toList();
     }
 }
