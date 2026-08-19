@@ -31,9 +31,29 @@ public class RabbitMQConfig {
         return new TopicExchange(CALLWRAP_EXCHANGE, true, false);
     }
 
+    public static final String RESULT_DLX = "callwrap.spring.dlx";
+    public static final String RESULT_DLQ = "callwrap.spring.result-queue.dlq";
+
     @Bean
     public Queue resultQueue() {
-        return QueueBuilder.durable(RESULT_QUEUE).build();
+        return QueueBuilder.durable(RESULT_QUEUE)
+            .withArgument("x-dead-letter-exchange", RESULT_DLX)
+            .build();
+    }
+
+    @Bean
+    public org.springframework.amqp.core.FanoutExchange resultDlx() {
+        return new org.springframework.amqp.core.FanoutExchange(RESULT_DLX, true, false);
+    }
+
+    @Bean
+    public Queue resultDlq() {
+        return QueueBuilder.durable(RESULT_DLQ).build();
+    }
+
+    @Bean
+    public Binding resultDlqBinding() {
+        return BindingBuilder.bind(resultDlq()).to(resultDlx());
     }
 
     @Bean
