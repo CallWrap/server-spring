@@ -7,9 +7,11 @@ import com.callwrap.review.dto.ReviewCreateRequest;
 import com.callwrap.review.dto.ReviewCreateResponse;
 import com.callwrap.review.dto.ReviewDetailResponse;
 import com.callwrap.review.dto.ReviewListResponse;
+import com.callwrap.review.dto.ReviewStatsResponse;
 import com.callwrap.review.service.ReviewConfirmService;
 import com.callwrap.review.service.ReviewCreateService;
 import com.callwrap.review.service.ReviewQueryService;
+import com.callwrap.review.service.ReviewStatsService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +40,7 @@ public class ReviewController {
     private final ReviewCreateService reviewCreateService;
     private final ReviewQueryService reviewQueryService;
     private final ReviewConfirmService reviewConfirmService;
+    private final ReviewStatsService reviewStatsService;
 
     @Operation(summary = "검토 생성", description = "사보원이 상담 종료 시 음성파일 URL + 상담사 정보를 넘겨 검토를 생성한다. 즉시 202로 응답하고 처리는 큐 뒤에서 진행된다.")
     @PostMapping
@@ -60,6 +63,14 @@ public class ReviewController {
     @GetMapping("/{reviewId}")
     public ReviewDetailResponse detail(@PathVariable UUID reviewId) {
         return reviewQueryService.getDetail(reviewId);
+    }
+
+    @Operation(summary = "관리자 대시보드 집계", description = "상태별·등급별·유형별 건수와 평균 검토 시간을 DB에서 " +
+        "GROUP BY로 집계해서 반환한다. 목록 API로 콜을 가져와 프론트에서 세는 대신 이 엔드포인트를 쓴다 — " +
+        "목록은 page/size로 잘려 있어서 그렇게 세면 전체 건수를 넘는 순간부터 통계가 틀어진다.")
+    @GetMapping("/stats")
+    public ReviewStatsResponse stats() {
+        return reviewStatsService.getStats();
     }
 
     @Operation(summary = "검토 확정", description = "상담사가 AI 분석 결과를 검토 후 확정한다. JWT 인증 필요.")
