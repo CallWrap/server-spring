@@ -39,4 +39,35 @@ public interface AnalysisResultRepository extends JpaRepository<AnalysisResult, 
         String getInquiry();
         String getResolution();
     }
+
+    /**
+     * 관리자 대시보드 개요용 등급 분포. JSONB 값(grade->>'value')이라 네이티브 쿼리로 GROUP BY 한다 —
+     * V1 마이그레이션의 표현식 인덱스((grade ->> 'value'))를 그대로 탄다. 미판정(grade IS NULL)도
+     * COALESCE로 한 그룹으로 묶어서 반환한다 — 이걸 안 하면 그 행들이 label=null로 따로 잡혀서
+     * Collectors.toMap에서 다루기 애매해진다.
+     */
+    @Query(value = """
+        SELECT COALESCE(ar.grade ->> 'value', '미판정') AS label, COUNT(*) AS cnt
+        FROM analysis_results ar
+        GROUP BY COALESCE(ar.grade ->> 'value', '미판정')
+        """, nativeQuery = true)
+    List<LabelCountProjection> countByGrade();
+
+    /** 상담유형 분포. consultation_type은 아직 SR 모델 미연동이라 대부분 ETC로 잡힌다(알려진 한계). */
+    @Query(value = """
+        SELECT COALESCE(ar.consultation_type ->> 'value', '미분류') AS label, COUNT(*) AS cnt
+        FROM analysis_results ar
+        GROUP BY COALESCE(ar.consultation_type ->> 'value', '미분류')
+        """, nativeQuery = true)
+    List<LabelCountProjection> countByConsultationType();
+
+    /** 확정된 콜의 평균 검토 시간(초). 아직 확정된 콜이 없으면 null. */
+    @Query(value = "SELECT AVG(ar.review_sec) FROM analysis_results ar WHERE ar.review_sec IS NOT NULL",
+        nativeQuery = true)
+    Double averageReviewSec();
+
+    interface LabelCountProjection {
+        String getLabel();
+        Long getCnt();
+    }
 }
