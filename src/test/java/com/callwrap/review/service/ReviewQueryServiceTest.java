@@ -42,6 +42,19 @@ class ReviewQueryServiceTest {
     private ReviewQueryService reviewQueryService;
 
     @Test
+    void 목록에_접수순번이_실린다() {
+        Call call = call();
+        ReflectionTestUtils.setField(call, "callNo", 7);
+        when(callRepository.searchReviews(any(), any(Pageable.class)))
+            .thenReturn(new PageImpl<>(List.of(call)));
+        when(analysisResultRepository.findByCallIdIn(List.of(call.getId()))).thenReturn(List.of());
+
+        ReviewListResponse result = reviewQueryService.list(null, 0, 20);
+
+        assertThat(result.items()).singleElement().extracting("callNo").isEqualTo(7);
+    }
+
+    @Test
     void 목록에_요약_제목이_실린다() {
         Call call = call();
         when(callRepository.searchReviews(any(), any(Pageable.class)))

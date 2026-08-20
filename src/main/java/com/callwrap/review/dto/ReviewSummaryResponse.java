@@ -11,6 +11,7 @@ import java.util.UUID;
  */
 public record ReviewSummaryResponse(
     UUID reviewId,
+    Integer callNo,
     String title,
     String status,
     int retryCount,

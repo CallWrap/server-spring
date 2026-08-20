@@ -13,6 +13,8 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Generated;
+import org.hibernate.generator.EventType;
 
 import java.util.UUID;
 
@@ -33,6 +35,15 @@ public class Call extends BaseTimeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    /**
+     * 접수 순번. 상담사가 대기열에서 콜을 부르는 번호다(화면엔 001처럼 3자리로 찍는다).
+     * 값은 DB 시퀀스(calls_call_no_seq)가 채우고 Hibernate가 insert 직후 다시 읽어온다 —
+     * 애플리케이션에서 max+1을 세면 동시 접수에서 번호가 겹친다.
+     */
+    @Generated(event = EventType.INSERT)
+    @Column(name = "call_no", insertable = false, updatable = false)
+    private Integer callNo;
 
     @Column(name = "counselor_id", nullable = false)
     private UUID counselorId;

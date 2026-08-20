@@ -66,6 +66,7 @@ public class ReviewQueryService {
             .count();
         return new ReviewSummaryResponse(
             call.getId(),
+            call.getCallNo(),
             summaryTitle(analysis),
             call.getStatus().name(),
             call.getRetryCount(),
@@ -116,6 +117,7 @@ public class ReviewQueryService {
 
         return new ReviewDetailResponse(
             call.getId(),
+            call.getCallNo(),
             call.getStatus().name(),
             call.getCallStartedAt(),
             call.getCallDurationSec(),
