@@ -43,6 +43,11 @@ public class PipelineMetrics {
         meterRegistry.counter("callwrap_result_schema_violation_total", "reason", reason).increment();
     }
 
+    /** 워커 유실로 갇혀 있다가 스위퍼가 FAILED로 내린 콜. 0이 아니면 워커 쪽을 봐야 한다는 신호다. */
+    public void recordStuckCallSwept() {
+        meterRegistry.counter("callwrap_stuck_call_swept_total").increment();
+    }
+
     public void recordProcessingDuration(Duration duration) {
         processingTimer.record(duration);
     }

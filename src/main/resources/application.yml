@@ -48,6 +48,12 @@ callwrap:
   jwt:
     access-token-expiration-seconds: 3600
     refresh-token-expiration-seconds: 1209600
+  pipeline:
+    stuck-call:
+      # PROCESSING인 채로 이 시간을 넘기면 워커가 죽은 것으로 보고 FAILED로 내린다 (StuckCallSweeper).
+      # 정상 처리 최대 소요보다 넉넉히 잡는다 — 짧으면 오래 걸리는 콜을 죽인다.
+      timeout-minutes: ${STUCK_CALL_TIMEOUT_MINUTES:15}
+      sweep-interval-ms: ${STUCK_CALL_SWEEP_INTERVAL_MS:60000}
   fastapi:
     # FAQ 배치 생성 트리거(POST /internal/faq/generate-batch)를 호출할 때만 쓴다.
     # FastAPI의 api 서비스가 host에 노출한 포트(docker-compose.yml의 "8001:8000") 기준.
