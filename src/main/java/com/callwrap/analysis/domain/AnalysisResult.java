@@ -1,6 +1,8 @@
 package com.callwrap.analysis.domain;
 
 import com.callwrap.global.common.Judgment;
+import com.callwrap.global.exception.CallWrapException;
+import com.callwrap.global.exception.ErrorCode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -119,7 +121,7 @@ public class AnalysisResult {
                 case "category" -> this.consultationCategory = withConfirmedValue(this.consultationCategory, value);
                 case "subcategory" -> this.consultationSubcategory = withConfirmedValue(this.consultationSubcategory, value);
                 case "grade" -> this.grade = withConfirmedValue(this.grade, value);
-                case "summary" -> this.summary = withConfirmedValue(this.summary, value);
+                case "summary" -> this.summary = withConfirmedValue(this.summary, requireSummaryShape(value));
                 case "followup" -> this.needsFollowup = withConfirmedValue(this.needsFollowup, value);
                 case "faq" -> this.needsFaq = withConfirmedValue(this.needsFaq, value);
                 default -> log.warn("[review] 알 수 없는 confirmedFields 키 무시됨: {}", field);
@@ -130,6 +132,26 @@ public class AnalysisResult {
     /** FAQ 배치가 이 콜을 재료로 썼음을 표시 — 다음 배치 후보 조회에서 제외된다. */
     public void markFaqProcessed() {
         this.faqProcessedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 요약 확정값은 반드시 {title, inquiry, resolution} 구조여야 한다.
+     *
+     * 예전엔 web이 세 값을 "[제목]\n문의: …\n처리: …" 한 덩어리 문자열로 합쳐 보냈고, 이 메서드가
+     * 그걸 그대로 받아 JSONB의 구조를 통째로 덮어썼다. 그 순간 대기열 제목(summary->'value'->>'title')이
+     * 사라지고 FAQ 후보 조회(summary->'value'->>'inquiry')도 NULL이 됐는데, 화면은 멀쩡해 보여서
+     * DB를 열기 전엔 아무도 몰랐다. 조용히 망가지느니 요청을 거절한다.
+     */
+    private Object requireSummaryShape(Object value) {
+        if (value instanceof Map<?, ?> summary
+            && summary.get("title") instanceof String
+            && summary.get("inquiry") instanceof String
+            && summary.get("resolution") instanceof String) {
+            return value;
+        }
+        log.error("[review] summary 확정값이 계약 구조가 아님 (받은 타입: {})",
+            value == null ? "null" : value.getClass().getSimpleName());
+        throw new CallWrapException(ErrorCode.VALIDATION_ERROR);
     }
 
     private Judgment<Object> withConfirmedValue(Judgment<Object> original, Object confirmedValue) {
