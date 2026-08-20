@@ -30,6 +30,13 @@ public interface CallRepository extends JpaRepository<Call, UUID> {
     @Query("SELECT c.status AS status, COUNT(c) AS cnt FROM Call c GROUP BY c.status")
     List<StatusCountProjection> countByStatus();
 
+    /**
+     * 스위퍼용 — 특정 상태로 threshold 이전부터 갇혀 있는 콜.
+     * PROCESSING 전이 이후로는 Spring이 이 행을 건드리지 않으므로 updatedAt이 곧 "언제부터 처리 중인가"다.
+     * idx_calls_status를 탄다.
+     */
+    List<Call> findByStatusAndUpdatedAtBefore(CallStatus status, java.time.LocalDateTime threshold);
+
     interface StatusCountProjection {
         CallStatus getStatus();
         Long getCnt();
