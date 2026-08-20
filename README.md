@@ -32,7 +32,7 @@ flowchart LR
     Celery -- "4) ResultMessage 발행 - schema 검증" --> MQ
     MQ -- "5) result-queue 소비" --> Spring
 
-    MQ -.실패시.-> DLQ[("DLQ<br/>지수 백오프 재시도 후 격리")]
+    MQ -.실패시.-> DLQ[("DLQ<br/>지수 백오프 재시도(최대 4회) 후 격리")]
 
     Spring -- "6) FAQ 배치 트리거" --> FastAPI["server-fastapi"]
     FastAPI -- "후보 조회" --> Spring
@@ -66,10 +66,12 @@ UPLOADED → PROCESSING → DONE / NEEDS_HUMAN_REVIEW / FAILED → CONFIRMED
 
 1. **비동기 파이프라인 오케스트레이션** — RabbitMQ topic exchange(`callwrap`) 기반. 콜 접수는 즉시 202로 응답하고, 실제 처리는 백그라운드에서 이뤄진다.
 2. **메시지 계약 검증** — `JobRequest`/`ResultMessage` 둘 다 JSON Schema(Draft-07, `networknt/json-schema-validator`)로 발행 시점과 수신 시점 모두 검증한다. 위반 시 메트릭 카운터를 올리고 요청을 거부한다.
-3. **장애 대응(DLQ + 재시도)** — `callwrap.jobs`(Job 큐), Spring의 result 큐 양쪽에 Dead Letter Exchange/Queue를 구성했고, Spring 리스너에는 지수 백오프 재시도(2s → 30s, 최대 4회)가 붙어 있다. 존재하지 않는 콜에 대한 결과 수신처럼 재시도해도 해결되지 않는 오류는 즉시 DLQ로 보낸다.
+3. **장애 대응(DLQ + 재시도)** — `callwrap.jobs`(Job 큐), Spring의 result 큐 양쪽에 Dead Letter Exchange/Queue를 구성했고, Spring 리스너에는 지수 백오프 재시도(2s → 30s, 최대 4회)가 붙어 있다. 스키마 위반이나 존재하지 않는 콜처럼 재시도해도 해결되지 않는 오류는 `AmqpRejectAndDontRequeueException`으로 표시해 재큐하지 않고 DLQ로 보낸다.
+
+   > 다만 **재시도를 거친 뒤에 DLQ로 간다.** `spring.rabbitmq.listener.simple.retry`가 켜져 있으면 재시도 인터셉터가 예외 종류를 가리지 않고 먼저 4회(약 14초) 돌린 뒤에야 이 예외의 "재큐 금지"가 적용되기 때문이다(실측 확인). 결과적으로 메시지는 정상적으로 격리되지만, ① 못 고칠 메시지가 그 시간만큼 뒤 메시지를 막고 ② `callwrap_result_schema_violation_total`이 **한 건을 네 번 센다.** 즉시 격리가 필요해지면 재시도 인터셉터에 예외 분류기를 붙여야 한다.
 4. **콜 검토 워크플로우** — 상담사가 AI 판정을 검토·수정 후 확정한다. 확정 전까지는 자유롭게 수정 가능하고, 확정 이후 데이터는 엔티티 내부 메서드(`AnalysisResult.confirm()`)를 통해서만 바뀐다.
 5. **FAQ 자동 생성** — "FAQ 반영 필요"(`needs_faq`)로 판정되고 아직 처리되지 않은 콜을 상담분류(소분류) 단위로 묶어 배치 생성을 트리거한다. FastAPI가 EXAONE으로 대표 질문·답변을 합성해 돌려주면 Spring이 `DRAFT` 상태로 저장하고, 상담사가 web에서 검수(수정/게시/폐기)한다.
-6. **운영 가시성** — `/actuator/prometheus`에서 큐 적재량(Job 큐·Result 큐 모두, RabbitMQ Management API를 10초 주기로 폴링), Job 발행 건수, 결과 수신 건수(상태별), 처리 소요시간(p50/p95/p99), 스키마 위반 건수를 노출한다. Grafana 대시보드 시각화는 다음 단계.
+6. **운영 가시성** — `/actuator/prometheus`에서 큐 적재량(Job 큐·Result 큐 모두, RabbitMQ Management API를 10초 주기로 폴링), Job 발행 건수, 결과 수신 건수(상태별), 처리 소요시간(p50/p95/p99), 스키마 위반 건수를 노출한다. Grafana 대시보드(`observability/grafana/provisioning/`)도 함께 프로비저닝되어 `http://localhost:3001`에서 바로 열린다.
 7. **API 문서화** — springdoc-openapi 기반 Swagger UI, JWT bearer 인증 스킴 포함.
 8. **부하 테스트** — `loadtest/`에 Locust/k6 기반 시나리오(콜 접수→처리 완료까지의 파이프라인 부하) 준비.
 9. **실시간 갱신(SSE)** — 콜 상태가 바뀔 때마다(`PROCESSING`/`DONE`/`NEEDS_HUMAN_REVIEW`/`FAILED`/`CONFIRMED`) `/api/reviews/stream`으로 이벤트를 밀어줘서, 상담사 화면이 폴링 없이 대기열을 갱신한다. `@TransactionalEventListener(AFTER_COMMIT)`로 트랜잭션이 실제로 커밋된 뒤에만 내보낸다.
@@ -172,5 +174,4 @@ Spring 앱은 도커 안이 아니라 호스트에서 `./gradlew bootRun`으로 
 - **로그아웃 시 refreshToken 서버측 폐기(블랙리스트) 미구현** — 현재는 쿠키 무효화만 수행한다.
 - **상담유형(`consultation_type`) 판정은 아직 실제 모델과 연결되지 않은 자리 표시자** — SR유형 8종 분류 모델이 팀 내 코드 리뷰 중이며, 병합 전까지는 값이 고정된 채로 내려온다.
 - **메시지 계약 검증 로직은 구현되어 있으나 fixture 기반 단위테스트는 보강 필요**
-- **Grafana 대시보드 미구축** — 메트릭 자체는 Prometheus로 노출 중이지만 시각화 대시보드는 다음 단계 작업이다.
 - **`call_id` 멱등 처리**는 별도 이슈로 진행 중
