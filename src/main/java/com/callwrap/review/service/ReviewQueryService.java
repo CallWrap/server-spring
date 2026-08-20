@@ -19,6 +19,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -53,7 +54,11 @@ public class ReviewQueryService {
     }
 
     private ReviewSummaryResponse toSummary(Call call, AnalysisResult analysis) {
-        List<Judgment<Object>> reviewableFields = analysis == null ? List.of() : List.of(
+        // Arrays.asList다 — List.of는 null 원소에 NPE를 던진다. AI 분석은 부분 실패를 허용해서
+        // (실패한 모듈의 필드는 null) 예를 들어 Ollama가 꺼져 있으면 grade·summary·needsFollowup이
+        // 통째로 null로 들어오는데, List.of면 그 순간 대기열 목록 API 전체가 500으로 죽는다.
+        // 아래 filter가 이미 null을 걸러내므로 담기만 하면 된다. totalFieldCount는 5로 유지된다.
+        List<Judgment<Object>> reviewableFields = analysis == null ? List.of() : Arrays.asList(
             analysis.getConsultationType(), analysis.getConsultationCategory(),
             analysis.getGrade(), analysis.getSummary(), analysis.getNeedsFollowup());
         int highCount = (int) reviewableFields.stream()
@@ -61,6 +66,7 @@ public class ReviewQueryService {
             .count();
         return new ReviewSummaryResponse(
             call.getId(),
+            summaryTitle(analysis),
             call.getStatus().name(),
             call.getRetryCount(),
             analysis != null ? analysis.getGrade() : null,
@@ -70,6 +76,23 @@ public class ReviewQueryService {
             call.getCallStartedAt(),
             call.getCreatedAt(),
             call.getUpdatedAt());
+    }
+
+    /**
+     * 요약 제목. JSONB에서 올라온 Summary는 Judgment&lt;Object&gt;라 강타입이 아니라 Map이다
+     * (라벨 체계가 자주 바뀌어 일부러 열어둔 설계 — Judgment 주석 참고).
+     * 목록 조회는 이미 AnalysisResult를 통째로 들고 있으므로 추가 쿼리가 없다.
+     */
+    private String summaryTitle(AnalysisResult analysis) {
+        if (analysis == null || analysis.getSummary() == null) {
+            return null;
+        }
+        if (analysis.getSummary().value() instanceof Map<?, ?> summary
+            && summary.get("title") instanceof String title
+            && !title.isBlank()) {
+            return title;
+        }
+        return null;
     }
 
     @Transactional(readOnly = true)
