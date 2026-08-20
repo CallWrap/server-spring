@@ -9,6 +9,7 @@ import java.util.UUID;
 
 public record ReviewDetailResponse(
     UUID reviewId,
+    Integer callNo,
     String status,
     LocalDateTime callStartedAt,
     Integer callDurationSec,
