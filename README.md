@@ -70,12 +70,29 @@ UPLOADED → PROCESSING → DONE / NEEDS_HUMAN_REVIEW / FAILED → CONFIRMED
 
    > 다만 **재시도를 거친 뒤에 DLQ로 간다.** `spring.rabbitmq.listener.simple.retry`가 켜져 있으면 재시도 인터셉터가 예외 종류를 가리지 않고 먼저 4회(약 14초) 돌린 뒤에야 이 예외의 "재큐 금지"가 적용되기 때문이다(실측 확인). 결과적으로 메시지는 정상적으로 격리되지만, ① 못 고칠 메시지가 그 시간만큼 뒤 메시지를 막고 ② `callwrap_result_schema_violation_total`이 **한 건을 네 번 센다.** 즉시 격리가 필요해지면 재시도 인터셉터에 예외 분류기를 붙여야 한다.
 4. **콜 검토 워크플로우** — 상담사가 AI 판정을 검토·수정 후 확정한다. 확정 전까지는 자유롭게 수정 가능하고, 확정 이후 데이터는 엔티티 내부 메서드(`AnalysisResult.confirm()`)를 통해서만 바뀐다.
-5. **FAQ 자동 생성** — "FAQ 반영 필요"(`needs_faq`)로 판정되고 아직 처리되지 않은 콜을 상담분류(소분류) 단위로 묶어 배치 생성을 트리거한다. FastAPI가 EXAONE으로 대표 질문·답변을 합성해 돌려주면 Spring이 `DRAFT` 상태로 저장하고, 상담사가 web에서 검수(수정/게시/폐기)한다.
+5. **FAQ 자동 생성 (+ 중복 병합 · 추천 정렬)** — "FAQ 반영 필요"(`needs_faq`)로 판정되고 아직 처리되지 않은 콜을 상담분류(소분류) 단위로 묶어 배치 생성을 트리거한다. FastAPI가 EXAONE으로 대표 질문·답변을 합성해 돌려주면, Spring은 같은 소분류 안에서 질문 문장이 비슷한(단어 겹침 비율 Jaccard ≥ 0.5) 기존 `DRAFT`/`PUBLISHED` 항목이 있는지 먼저 찾는다(`FaqEntryService.findMergeTarget()`). 있으면 새로 만들지 않고 그 항목에 근거 콜만 누적하고(`FaqEntry.absorb()`), 없을 때만 새 `DRAFT`를 만든다 — 배치를 돌 때마다 같은 주제의 FAQ가 중복으로 쌓이는 걸 막는다. 이 매칭(소분류 필터 + 문장 유사도 비교)은 "겹치는가 아닌가"만 보면 되는 작업이라 언어 추론이 필요 없다고 보고 LLM을 부르지 않고 코드로 처리하며, EXAONE은 문항 합성에만 쓴다. 목록 조회(`GET /api/faq-entries`)는 근거 콜이 많이 쌓인(=많이 문의된) 순으로 정렬해 반환해서 검수하는 상담사에게 우선순위를 "추천"하는 신호로 쓰고, web은 5건 이상 누적된 항목에 배지를 붙여 보여준다. 반려(`DISCARDED`)된 항목은 병합 대상에서 제외한다 — 상담사가 명시적으로 거절한 걸 배치가 조용히 되살리지 않기 위해서다. 트리거는 두 경로다 — 관리자가 누르는 수동 트리거(`POST /api/faq-entries/generate-batch`)와, `@Scheduled(cron = "0 0 4 * * *")`로 매일 새벽 4시(KST)에 자동 실행되는 `FaqBatchScheduler`. 소분류당 후보 3건 미만이면 그 그룹은 건너뛰고 다음 배치에서 재시도된다.
 6. **운영 가시성** — `/actuator/prometheus`에서 큐 적재량(Job 큐·Result 큐 모두, RabbitMQ Management API를 10초 주기로 폴링), Job 발행 건수, 결과 수신 건수(상태별), 처리 소요시간(p50/p95/p99), 스키마 위반 건수를 노출한다. Grafana 대시보드(`observability/grafana/provisioning/`)도 함께 프로비저닝되어 `http://localhost:3001`에서 바로 열린다.
 7. **API 문서화** — springdoc-openapi 기반 Swagger UI, JWT bearer 인증 스킴 포함.
 8. **부하 테스트** — `loadtest/`에 Locust/k6 기반 시나리오(콜 접수→처리 완료까지의 파이프라인 부하) 준비.
 9. **실시간 갱신(SSE)** — 콜 상태가 바뀔 때마다(`PROCESSING`/`DONE`/`NEEDS_HUMAN_REVIEW`/`FAILED`/`CONFIRMED`) `/api/reviews/stream`으로 이벤트를 밀어줘서, 상담사 화면이 폴링 없이 대기열을 갱신한다. `@TransactionalEventListener(AFTER_COMMIT)`로 트랜잭션이 실제로 커밋된 뒤에만 내보낸다.
-10. **관리자 대시보드 집계** — 상태별·등급별·유형별 건수와 평균 검토 시간을 `/api/reviews/stats`에서 DB `GROUP BY`/`AVG`로 직접 계산해 반환한다. 목록 API로 콜을 가져와 프론트에서 세는 대신 이 엔드포인트를 쓴다.
+10. **관리자 대시보드 집계** — 상태별·등급별·유형별 건수와 평균 검토 시간을 `/api/reviews/stats`에서 DB `GROUP BY`/`AVG`로 직접 계산해 반환한다. 목록 API로 콜을 가져와 프론트에서 세는 대신 이 엔드포인트를 쓴다. 시간대별 처리량(`hourlyThroughput`)과 상담사별 악성콜 분포(`maliciousByCounselor`)도 같은 방식으로 계산해 함께 내려준다.
+
+## 인증 설계
+
+호출 주체가 둘로 나뉘어 인증 방식도 둘로 나눴다.
+
+- **JWT** (`JwtAuthenticationFilter`) — 상담사가 로그인 후 web에서 호출하는 모든 경로.
+  `Authorization: Bearer {token}` 헤더로 인증하며, principal은 `counselorId`(UUID) 하나만 담는다
+  (POC 규모에서 `UserDetails` 계층 없이 `@AuthenticationPrincipal UUID`로 바로 받는 게 더 단순하다고 판단).
+- **API Key** (`ApiKeyAuthFilter`) — 사람이 아니라 다른 서버가 호출하는 경로. 사회보장정보원 콜 접수
+  시스템(`POST /api/reviews`, `POST /api/audio/upload-url`)과 FastAPI 배치 생성기(`/api/internal/faq/**`)가
+  해당한다. `X-API-Key` 헤더 값을 스코프(`API_KEY_INTAKE` / `API_KEY_INTERNAL`)로 매핑해, 사보원 키로
+  내부 FAQ API를, 반대로 FastAPI 키로 콜 접수 API를 부를 수 없도록 최소 권한을 강제한다. 키 비교는
+  `MessageDigest.isEqual`로 상수 시간 비교한다.
+
+두 필터 모두 `SecurityFilterChain`에서 `UsernamePasswordAuthenticationFilter` 앞에 등록되며, "토큰/키가
+있으면 인증 컨텍스트를 채우고 없어도 필터 자체는 막지 않는다" — 실제 차단은 `authorizeHttpRequests`의
+경로별 규칙이 담당한다. 인증(누가 부르는가)과 인가(무엇을 할 수 있는가)를 필터와 규칙으로 분리한 구조다.
 
 ## 기술 스택
 
@@ -90,26 +107,26 @@ UPLOADED → PROCESSING → DONE / NEEDS_HUMAN_REVIEW / FAILED → CONFIRMED
 
 ## API 요약
 
-| Method | Endpoint | 설명 |
-|---|---|---|
-| POST | `/api/auth/login` | 상담사 로그인 |
-| POST | `/api/auth/refresh` | 액세스 토큰 재발급 |
-| POST | `/api/auth/logout` | 로그아웃 |
-| GET | `/api/users/me` | 로그인한 상담사 정보 조회 |
-| POST | `/api/audio/upload-url` | 오디오 업로드용 presigned URL 발급 |
-| POST | `/api/reviews` | 콜 접수 — 즉시 202 반환, 분석은 비동기로 트리거 |
-| GET | `/api/reviews` | 검토 목록 조회 (상태 필터, 페이지네이션) |
-| GET | `/api/reviews/{reviewId}` | 검토 상세 조회 |
-| GET | `/api/reviews/stats` | 관리자 대시보드 집계 (상태·등급·유형별 건수, 평균 검토 시간) |
-| GET | `/api/reviews/stream` | 콜 상태 변경 실시간 스트림 (SSE) |
-| PATCH | `/api/reviews/{reviewId}/confirm` | 검토 확정 |
-| POST | `/api/faq-entries/generate-batch` | FAQ 배치 생성 트리거 (FastAPI 호출) |
-| GET | `/api/faq-entries` | FAQ 목록 조회 (상태 필터) |
-| PATCH | `/api/faq-entries/{id}` | FAQ 초안 수정 |
-| POST | `/api/faq-entries/{id}/publish` | FAQ 게시 |
-| POST | `/api/faq-entries/{id}/discard` | FAQ 폐기 |
-| GET | `/api/internal/faq/candidates` | FAQ 후보 콜 조회 (FastAPI 전용) |
-| POST | `/api/internal/faq/entries` | FAQ 초안 등록 (FastAPI 전용) |
+| Method | Endpoint | 설명 | 인증 |
+|---|---|---|---|
+| POST | `/api/auth/login` | 상담사 로그인 | - |
+| POST | `/api/auth/refresh` | 액세스 토큰 재발급 | - |
+| POST | `/api/auth/logout` | 로그아웃 | - |
+| GET | `/api/users/me` | 로그인한 상담사 정보 조회 | JWT |
+| POST | `/api/audio/upload-url` | 오디오 업로드용 presigned URL 발급 | API Key(사보원) |
+| POST | `/api/reviews` | 콜 접수 — 즉시 202 반환, 분석은 비동기로 트리거 | API Key(사보원) |
+| GET | `/api/reviews` | 검토 목록 조회 (상태 필터, 페이지네이션) | JWT |
+| GET | `/api/reviews/{reviewId}` | 검토 상세 조회 | JWT |
+| GET | `/api/reviews/stats` | 관리자 대시보드 집계 (상태·등급·유형별 건수, 평균 검토 시간, 시간대별 처리량, 상담사별 악성콜 분포) | JWT |
+| GET | `/api/reviews/stream` | 콜 상태 변경 실시간 스트림 (SSE) | JWT |
+| PATCH | `/api/reviews/{reviewId}/confirm` | 검토 확정 | JWT |
+| POST | `/api/faq-entries/generate-batch` | FAQ 배치 생성 트리거 (수동, 새벽 4시 자동 실행도 동일 로직) | JWT |
+| GET | `/api/faq-entries` | FAQ 목록 조회 (상태 필터) | JWT |
+| PATCH | `/api/faq-entries/{id}` | FAQ 초안 수정 | JWT |
+| POST | `/api/faq-entries/{id}/publish` | FAQ 게시 | JWT |
+| POST | `/api/faq-entries/{id}/discard` | FAQ 폐기 | JWT |
+| GET | `/api/internal/faq/candidates` | FAQ 후보 콜 조회 (FastAPI 전용) | API Key(내부) |
+| POST | `/api/internal/faq/entries` | FAQ 초안 등록 (FastAPI 전용) | API Key(내부) |
 
 로컬 실행 후 `http://localhost:8080/swagger-ui.html`에서 전체 스펙을 확인할 수 있다.
 
@@ -167,11 +184,11 @@ Spring 앱은 도커 안이 아니라 호스트에서 `./gradlew bootRun`으로 
 |---|---|
 | `JWT_SECRET` | JWT 서명 키 (32바이트 이상 랜덤 문자열) |
 | `FASTAPI_BASE_URL` | FAQ 배치 생성 트리거 호출 대상 (기본값 `http://localhost:8001`) |
+| `CALLWRAP_API_KEY_INTAKE` | 사회보장정보원 콜 접수 시스템 인증용 (`X-API-Key`) |
+| `CALLWRAP_API_KEY_INTERNAL` | FastAPI 배치 생성기 인증용 (`X-API-Key`). `server-fastapi`의 `SPRING_INTERNAL_API_KEY`와 동일해야 함 |
 
 ## 알려진 제한사항
 
-- **인증/인가는 데모 단계** — 로그인·토큰 발급 자체는 정상 동작하지만, 시스템 간 인증(사보원→Spring API Key)과 프론트엔드 JWT 연동 검증이 끝나기 전까지 `SecurityConfig`는 의도적으로 모든 요청을 `permitAll`로 열어 두고 있다. 토큰이 실려 오면 인증 컨텍스트는 정상적으로 채워진다.
 - **로그아웃 시 refreshToken 서버측 폐기(블랙리스트) 미구현** — 현재는 쿠키 무효화만 수행한다.
-- **상담유형(`consultation_type`) 판정은 아직 실제 모델과 연결되지 않은 자리 표시자** — SR유형 8종 분류 모델이 팀 내 코드 리뷰 중이며, 병합 전까지는 값이 고정된 채로 내려온다.
 - **메시지 계약 검증 로직은 구현되어 있으나 fixture 기반 단위테스트는 보강 필요**
 - **`call_id` 멱등 처리**는 별도 이슈로 진행 중

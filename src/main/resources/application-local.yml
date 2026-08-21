@@ -25,3 +25,7 @@ callwrap:
     secret-key: minioadmin
   jwt:
     secret: c2FtcGxlLWxvY2FsLWRldi1qd3Qtc2VjcmV0LWtleS1hdC1sZWFzdC0zMi1ieXRlcw==
+  api-key:
+    # 로컬 개발용 샘플 키 — 배포 환경에서는 반드시 CALLWRAP_API_KEY_INTAKE/INTERNAL 환경변수로 덮어쓸 것.
+    intake: local-dev-intake-key
+    internal: local-dev-internal-key
