@@ -33,11 +33,13 @@ CONVERTIBLE = {".m4a", ".mp3", ".aac", ".ogg", ".mp4", ".wma"}
 
 
 def call_api(url: str, *, method: str = "GET", body: dict | None = None,
-             token: str | None = None) -> tuple[int, dict]:
+             token: str | None = None, api_key: str | None = None) -> tuple[int, dict]:
     data = json.dumps(body).encode() if body is not None else None
     headers = {"Content-Type": "application/json"} if data else {}
     if token:
         headers["Authorization"] = f"Bearer {token}"
+    if api_key:
+        headers["X-API-Key"] = api_key
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
         with urllib.request.urlopen(req, timeout=30) as res:
@@ -79,10 +81,14 @@ def to_wav(src: Path, workdir: Path) -> Path | None:
     return out if done.returncode == 0 and out.exists() else None
 
 
-def upload(base: str, token: str | None, wav: Path) -> str | None:
-    """업로드 URL을 받아 파일을 그대로 PUT한다. audio_uri를 돌려준다."""
+def upload(base: str, api_key: str, wav: Path) -> str | None:
+    """업로드 URL을 받아 파일을 그대로 PUT한다. audio_uri를 돌려준다.
+
+    /api/audio/upload-url은 상담사 JWT가 아니라 사보원 콜 접수 시스템용 API Key
+    (SecurityConfig의 API_KEY_INTAKE 스코프)로 인가한다 — 사람이 로그인해서 접수하는
+    경로가 아니라 외부 시스템이 접수하는 경로를 흉내 내기 때문."""
     status, body = call_api(f"{base}/api/audio/upload-url", method="POST",
-                            body={"fileExtension": wav.suffix.lstrip(".")}, token=token)
+                            body={"fileExtension": wav.suffix.lstrip(".")}, api_key=api_key)
     if status != 200:
         return None
     put = urllib.request.Request(body["uploadUrl"], data=wav.read_bytes(), method="PUT")
@@ -101,6 +107,10 @@ def main() -> None:
     p.add_argument("--counselor-id", help="지정하지 않으면 로그인해서 알아낸다")
     p.add_argument("--login-id", default="test")
     p.add_argument("--password", default="test")
+    p.add_argument("--api-key", default="local-dev-intake-key",
+                    help="사보원 콜 접수용 API Key (SecurityConfig의 API_KEY_INTAKE 스코프). "
+                         "로컬 기본값은 application-local.yml의 callwrap.api-key.intake와 동일 — "
+                         "배포 환경에선 CALLWRAP_API_KEY_INTAKE 값으로 바꿔서 넘길 것.")
     p.add_argument("--dry-run", action="store_true", help="접수하지 않고 대상 파일만 보여준다")
     args = p.parse_args()
 
@@ -136,14 +146,14 @@ def main() -> None:
                 failed += 1
                 continue
 
-            audio_uri = upload(base, token, wav)
+            audio_uri = upload(base, args.api_key, wav)
             if audio_uri is None:
                 print(f"{head} → 실패 (업로드)")
                 failed += 1
                 continue
 
             status, body = call_api(
-                f"{base}/api/reviews", method="POST", token=token,
+                f"{base}/api/reviews", method="POST", api_key=args.api_key,
                 body={
                     # 파일명을 그대로 쓴다 — 같은 파일을 두 번 넣으면 서버가 409로 거른다
                     "sourceRequestId": src.name,
