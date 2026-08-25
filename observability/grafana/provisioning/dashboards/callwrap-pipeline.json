@@ -1,5 +1,6 @@
 {
   "title": "CallWrap Pipeline",
+  "uid": "callwrap-pipeline",
   "schemaVersion": 39,
   "timezone": "browser",
   "time": { "from": "now-1h", "to": "now" },
@@ -43,6 +44,50 @@
       "targets": [
         { "expr": "callwrap_queue_depth", "legendFormat": "{{queue}}" }
       ]
+    },
+    {
+      "id": 5,
+      "title": "스키마 위반 (Job / Result)",
+      "description": "메시지 계약이 깨졌을 때만 오르는 지표 — 평소엔 0이어야 정상.",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        { "expr": "rate(callwrap_job_schema_violation_total[5m])", "legendFormat": "job_schema_violation" },
+        { "expr": "sum(rate(callwrap_result_schema_violation_total[5m])) by (reason)", "legendFormat": "result: {{reason}}" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "bars", "fillOpacity": 40 },
+          "min": 0
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "워커 유실로 스윕된 콜 (최근 1시간)",
+      "description": "PROCESSING 상태로 timeout을 넘겨 StuckCallSweeper가 강제로 FAILED 처리한 건수. 0이 아니면 워커 쪽을 봐야 한다는 신호.",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        { "expr": "increase(callwrap_stuck_call_swept_total[1h])", "legendFormat": "swept" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name"
+      }
     }
   ]
 }
