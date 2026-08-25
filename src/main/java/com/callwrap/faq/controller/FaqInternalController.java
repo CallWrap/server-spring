@@ -21,8 +21,8 @@ import org.springframework.web.bind.annotation.RestController;
  * FastAPI(사보원 쪽이 아니라 우리 파이프라인)가 서비스 간 호출로 쓰는 내부 API.
  * 상담사/web은 이 경로를 쓰지 않는다 — 검수용 API는 FaqController(/api/faq-entries).
  *
- * TODO: SecurityConfig의 permitAll이 풀리면(데모 이후 정식 인증), 이 경로는 JWT가 아니라
- * 시스템 간 API Key로 인증해야 한다 — SecurityConfig 상단 TODO와 동일한 항목.
+ * 인증: JWT가 아니라 시스템 간 API Key(X-API-Key, ApiKeyAuthFilter)로 인증한다 —
+ * SecurityConfig에서 이 경로 전체가 ApiKeyAuthFilter.SCOPE_INTERNAL 스코프로 보호된다.
  */
 @RestController
 @RequestMapping("/api/internal/faq")

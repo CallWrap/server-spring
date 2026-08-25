@@ -58,3 +58,8 @@ callwrap:
     # FAQ 배치 생성 트리거(POST /internal/faq/generate-batch)를 호출할 때만 쓴다.
     # FastAPI의 api 서비스가 host에 노출한 포트(docker-compose.yml의 "8001:8000") 기준.
     base-url: ${FASTAPI_BASE_URL:http://localhost:8001}
+  api-key:
+    # 시스템 간 호출 인증(ApiKeyAuthFilter). 사보원 콜 접수 시스템과 FastAPI 배치 생성기가
+    # 각자 다른 키를 쓴다 — 최소 권한 원칙(한 쪽 키가 새도 다른 경로는 못 부른다).
+    intake: ${CALLWRAP_API_KEY_INTAKE}
+    internal: ${CALLWRAP_API_KEY_INTERNAL}
