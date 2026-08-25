@@ -11,6 +11,8 @@ public record ReviewStatsResponse(
     Map<String, Long> statusCounts,
     Map<String, Long> gradeCounts,
     Map<String, Long> typeCounts,
-    Double avgReviewSec
+    Double avgReviewSec,
+    Map<String, Long> hourlyThroughput,
+    Map<String, Long> maliciousByCounselor
 ) {
 }

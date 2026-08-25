@@ -31,6 +31,18 @@ public interface CallRepository extends JpaRepository<Call, UUID> {
     List<StatusCountProjection> countByStatus();
 
     /**
+     * 관리자 대시보드 "시간대별 처리량" 차트용. 오늘 자정 이후 접수된 콜을 시간(0~23) 단위로 센다.
+     * hour는 문자열로 반환 — 프론트가 Record&lt;string, number&gt;로 그대로 받는다.
+     */
+    @Query(value = """
+        SELECT EXTRACT(HOUR FROM c.created_at)::text AS hour, COUNT(*) AS cnt
+        FROM calls c
+        WHERE c.created_at >= CURRENT_DATE
+        GROUP BY EXTRACT(HOUR FROM c.created_at)
+        """, nativeQuery = true)
+    List<HourCountProjection> hourlyThroughputToday();
+
+    /**
      * 스위퍼용 — 특정 상태로 threshold 이전부터 갇혀 있는 콜.
      * PROCESSING 전이 이후로는 Spring이 이 행을 건드리지 않으므로 updatedAt이 곧 "언제부터 처리 중인가"다.
      * idx_calls_status를 탄다.
@@ -39,6 +51,11 @@ public interface CallRepository extends JpaRepository<Call, UUID> {
 
     interface StatusCountProjection {
         CallStatus getStatus();
+        Long getCnt();
+    }
+
+    interface HourCountProjection {
+        String getHour();
         Long getCnt();
     }
 }

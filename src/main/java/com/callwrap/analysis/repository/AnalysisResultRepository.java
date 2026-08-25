@@ -53,7 +53,7 @@ public interface AnalysisResultRepository extends JpaRepository<AnalysisResult, 
         """, nativeQuery = true)
     List<LabelCountProjection> countByGrade();
 
-    /** 상담유형 분포. consultation_type은 아직 SR 모델 미연동이라 대부분 ETC로 잡힌다(알려진 한계). */
+    /** 상담유형 분포. sr_type.py(SR유형 8종) 모델이 analyze()에 병합되어(2026-08-20) 실제 분류가 채워진다. */
     @Query(value = """
         SELECT COALESCE(ar.consultation_type ->> 'value', '미분류') AS label, COUNT(*) AS cnt
         FROM analysis_results ar
@@ -65,6 +65,20 @@ public interface AnalysisResultRepository extends JpaRepository<AnalysisResult, 
     @Query(value = "SELECT AVG(ar.review_sec) FROM analysis_results ar WHERE ar.review_sec IS NOT NULL",
         nativeQuery = true)
     Double averageReviewSec();
+
+    /**
+     * 관리자 대시보드 "상담사별 악성콜 밸런싱" 차트용. 특정 상담사에게 악성콜이 몰리지 않는지
+     * 보는 게 목적이라, 콜을 받은 상담사가 아니라 실제로 검토·확정한 상담사(confirmed_by_counselor_id)
+     * 기준으로 센다 — 아직 확정 안 된 악성콜은 포함하지 않는다.
+     */
+    @Query(value = """
+        SELECT co.name AS label, COUNT(*) AS cnt
+        FROM analysis_results ar
+        JOIN counselors co ON co.id = ar.confirmed_by_counselor_id
+        WHERE ar.grade ->> 'value' = '악성콜' AND ar.confirmed_by_counselor_id IS NOT NULL
+        GROUP BY co.name
+        """, nativeQuery = true)
+    List<LabelCountProjection> maliciousByCounselor();
 
     interface LabelCountProjection {
         String getLabel();

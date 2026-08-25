@@ -41,6 +41,18 @@ public class ReviewStatsService {
 
         Double avgReviewSec = analysisResultRepository.averageReviewSec();
 
-        return new ReviewStatsResponse(totalCalls, statusCounts, gradeCounts, typeCounts, avgReviewSec);
+        Map<String, Long> hourlyThroughput = callRepository.hourlyThroughputToday().stream()
+            .collect(Collectors.toMap(
+                CallRepository.HourCountProjection::getHour,
+                CallRepository.HourCountProjection::getCnt));
+
+        Map<String, Long> maliciousByCounselor = analysisResultRepository.maliciousByCounselor().stream()
+            .collect(Collectors.toMap(
+                AnalysisResultRepository.LabelCountProjection::getLabel,
+                AnalysisResultRepository.LabelCountProjection::getCnt));
+
+        return new ReviewStatsResponse(
+            totalCalls, statusCounts, gradeCounts, typeCounts, avgReviewSec,
+            hourlyThroughput, maliciousByCounselor);
     }
 }
