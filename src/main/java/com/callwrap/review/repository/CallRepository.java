@@ -49,13 +49,23 @@ public interface CallRepository extends JpaRepository<Call, UUID> {
      */
     List<Call> findByStatusAndUpdatedAtBefore(CallStatus status, java.time.LocalDateTime threshold);
 
+    /** 관리자 대시보드 "시간대별 처리량"용 — 오늘(자정 이후) 접수된 콜을 시간(0~23)별로 센다. */
+    @Query(value = """
+        SELECT EXTRACT(HOUR FROM created_at)::int AS hour, COUNT(*) AS cnt
+        FROM calls
+        WHERE created_at >= date_trunc('day', now())
+        GROUP BY EXTRACT(HOUR FROM created_at)
+        ORDER BY hour
+        """, nativeQuery = true)
+    List<HourCountProjection> countTodayByHour();
+
     interface StatusCountProjection {
         CallStatus getStatus();
         Long getCnt();
     }
 
     interface HourCountProjection {
-        String getHour();
+        Integer getHour();
         Long getCnt();
     }
 }

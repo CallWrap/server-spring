@@ -15,6 +15,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -95,5 +96,24 @@ public class FaqEntry {
     public void discard(UUID counselorId) {
         this.status = FaqStatus.DISCARDED;
         this.reviewedByCounselorId = counselorId;
+    }
+
+    /**
+     * 새 배치에서 같은 FAQ로 판단된(주제·질문이 겹치는) 콜들을 기존 항목에 합친다 — 매번 새 DRAFT를
+     * 만드는 대신 근거만 누적한다. 질문/답변 문항 자체는 절대 안 건드린다: PUBLISHED된 문항을 배치가
+     * 돌 때마다 조용히 바꾸면 안 되고, DRAFT도 상담사가 이미 검수를 시작했을 수 있어서다.
+     */
+    public void absorb(int additionalCallCount, List<UUID> additionalCallIds) {
+        this.sourceCallCount += additionalCallCount;
+        List<UUID> merged = new ArrayList<>(this.sampleCallIds);
+        for (UUID id : additionalCallIds) {
+            if (!merged.contains(id)) {
+                merged.add(id);
+            }
+        }
+        // 근거 콜 목록이 무한정 커지지 않게 상한을 둔다 — faq_generate.py의 MAX_CASES(20)와 같은 이유.
+        // 오래된 것부터 버리고 최근 근거를 우선한다.
+        int cap = 50;
+        this.sampleCallIds = merged.size() > cap ? merged.subList(merged.size() - cap, merged.size()) : merged;
     }
 }

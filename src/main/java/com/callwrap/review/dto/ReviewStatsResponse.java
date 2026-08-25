@@ -12,7 +12,7 @@ public record ReviewStatsResponse(
     Map<String, Long> gradeCounts,
     Map<String, Long> typeCounts,
     Double avgReviewSec,
-    Map<String, Long> hourlyThroughput,
+    Map<Integer, Long> hourlyThroughput,
     Map<String, Long> maliciousByCounselor
 ) {
 }
