@@ -13,6 +13,10 @@ public record ReviewStatsResponse(
     Map<String, Long> typeCounts,
     Double avgReviewSec,
     Map<Integer, Long> hourlyThroughput,
-    Map<String, Long> maliciousByCounselor
+    Map<String, Long> maliciousByCounselor,
+    /** 판정 5종(유형·분류·등급·요약·후속필요) confidence 평균, 0~1. 판정이 하나도 없으면 null. */
+    Double avgConfidence,
+    /** 위 판정들 중 고신뢰(confidence >= 0.9) 비율, 0~1. 판정이 하나도 없으면 null. */
+    Double highConfidenceRate
 ) {
 }

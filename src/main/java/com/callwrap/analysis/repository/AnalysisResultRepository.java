@@ -78,6 +78,36 @@ public interface AnalysisResultRepository extends JpaRepository<AnalysisResult, 
         """, nativeQuery = true)
     List<NameCountProjection> countMaliciousByCounselor();
 
+    /**
+     * 관리자 대시보드 "신뢰도" 메트릭용 — 판정 5종(유형·분류·등급·요약·후속필요)의 confidence를
+     * 한 컬럼으로 펼쳐서(UNION ALL) 집계한다. ReviewQueryService.HIGH_CONFIDENCE_THRESHOLD(0.9)와
+     * 같은 5개 필드·같은 기준을 쓴다 — 목록 화면의 highConfidenceFieldCount/totalFieldCount와
+     * 숫자가 어긋나지 않도록. confidence가 없는(아직 판정 자체가 안 된) 필드는 집계에서 빠진다.
+     */
+    @Query(value = """
+        SELECT
+            COUNT(*) AS totalJudgedCount,
+            COUNT(*) FILTER (WHERE confidence >= 0.9) AS highConfidenceCount,
+            AVG(confidence) AS avgConfidence
+        FROM (
+            SELECT (ar.consultation_type ->> 'confidence')::float AS confidence
+                FROM analysis_results ar WHERE ar.consultation_type ->> 'confidence' IS NOT NULL
+            UNION ALL
+            SELECT (ar.consultation_category ->> 'confidence')::float
+                FROM analysis_results ar WHERE ar.consultation_category ->> 'confidence' IS NOT NULL
+            UNION ALL
+            SELECT (ar.grade ->> 'confidence')::float
+                FROM analysis_results ar WHERE ar.grade ->> 'confidence' IS NOT NULL
+            UNION ALL
+            SELECT (ar.summary ->> 'confidence')::float
+                FROM analysis_results ar WHERE ar.summary ->> 'confidence' IS NOT NULL
+            UNION ALL
+            SELECT (ar.needs_followup ->> 'confidence')::float
+                FROM analysis_results ar WHERE ar.needs_followup ->> 'confidence' IS NOT NULL
+        ) confidences
+        """, nativeQuery = true)
+    ConfidenceStatsProjection getConfidenceStats();
+
     interface LabelCountProjection {
         String getLabel();
         Long getCnt();
@@ -86,5 +116,11 @@ public interface AnalysisResultRepository extends JpaRepository<AnalysisResult, 
     interface NameCountProjection {
         String getName();
         Long getCnt();
+    }
+
+    interface ConfidenceStatsProjection {
+        Long getTotalJudgedCount();
+        Long getHighConfidenceCount();
+        Double getAvgConfidence();
     }
 }

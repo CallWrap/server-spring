@@ -51,7 +51,14 @@ public class ReviewStatsService {
                 AnalysisResultRepository.NameCountProjection::getName,
                 AnalysisResultRepository.NameCountProjection::getCnt));
 
+        AnalysisResultRepository.ConfidenceStatsProjection confidenceStats = analysisResultRepository.getConfidenceStats();
+        long totalJudgedCount = confidenceStats.getTotalJudgedCount() != null ? confidenceStats.getTotalJudgedCount() : 0L;
+        Double avgConfidence = totalJudgedCount > 0 ? confidenceStats.getAvgConfidence() : null;
+        Double highConfidenceRate = totalJudgedCount > 0
+            ? confidenceStats.getHighConfidenceCount() / (double) totalJudgedCount
+            : null;
+
         return new ReviewStatsResponse(totalCalls, statusCounts, gradeCounts, typeCounts, avgReviewSec,
-            hourlyThroughput, maliciousByCounselor);
+            hourlyThroughput, maliciousByCounselor, avgConfidence, highConfidenceRate);
     }
 }
