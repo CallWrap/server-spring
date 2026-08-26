@@ -45,6 +45,11 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
                 // 개발 도구·헬스체크
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/actuator/health").permitAll()
+                // 검토 목록 실시간 갱신 스트림 — 네이티브 EventSource는 Authorization 헤더를 못 보낸다
+                // (브라우저 표준 제약, 쿠키만 가능). 이 스트림이 보내는 데이터는 {callId, status}뿐이고
+                // ReviewQueryService.list()에도 상담사별 필터링이 없어 인증해도 전원이 같은 걸 본다 —
+                // 굳이 인증을 강제할 실익이 없어 permitAll로 둔다.
+                .requestMatchers(HttpMethod.GET, "/api/reviews/stream").permitAll()
                 // 사보원 콜 접수 시스템 전용
                 .requestMatchers(HttpMethod.POST, "/api/reviews", "/api/audio/upload-url")
                     .hasAuthority(ApiKeyAuthFilter.SCOPE_INTAKE)
