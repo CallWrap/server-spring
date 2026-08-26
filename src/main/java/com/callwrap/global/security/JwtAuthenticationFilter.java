@@ -1,5 +1,6 @@
 package com.callwrap.global.security;
 
+import com.callwrap.counselor.domain.CounselorRole;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -7,6 +8,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -40,7 +43,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String token = header.substring(PREFIX.length());
             if (jwtTokenProvider.validateToken(token)) {
                 UUID counselorId = jwtTokenProvider.getCounselorId(token);
-                var authentication = new UsernamePasswordAuthenticationToken(counselorId, null, List.of());
+                CounselorRole role = jwtTokenProvider.getRole(token);
+                // role을 GrantedAuthority로 심어야 SecurityConfig의 hasAuthority(ADMIN/COUNSELOR) 규칙이 먹는다.
+                List<GrantedAuthority> authorities =
+                        role != null ? List.of(new SimpleGrantedAuthority(role.name())) : List.of();
+                var authentication = new UsernamePasswordAuthenticationToken(counselorId, null, authorities);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         }

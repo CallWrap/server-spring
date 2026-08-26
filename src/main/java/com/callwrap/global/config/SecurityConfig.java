@@ -1,5 +1,6 @@
 package com.callwrap.global.config;
 
+import com.callwrap.counselor.domain.CounselorRole;
 import com.callwrap.global.security.ApiKeyAuthFilter;
 import com.callwrap.global.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
@@ -49,7 +50,12 @@ public class SecurityConfig {
                     .hasAuthority(ApiKeyAuthFilter.SCOPE_INTAKE)
                 // FastAPI 배치 생성기 전용
                 .requestMatchers("/api/internal/faq/**").hasAuthority(ApiKeyAuthFilter.SCOPE_INTERNAL)
-                // 나머지는 로그인한 상담사만 (JWT)
+                // 관리자 전용 — FAQ 검수 화면, 대시보드 집계(개요 탭). 상담사는 접근 자체가 안 되게 막는다.
+                .requestMatchers("/api/faq-entries/**").hasAuthority(CounselorRole.ADMIN.name())
+                .requestMatchers(HttpMethod.GET, "/api/reviews/stats").hasAuthority(CounselorRole.ADMIN.name())
+                // 상담사 전용 — 콜 검토 확정. 관리자는 검토 업무를 하지 않는다.
+                .requestMatchers(HttpMethod.PATCH, "/api/reviews/*/confirm").hasAuthority(CounselorRole.COUNSELOR.name())
+                // 나머지(대기열 조회 등)는 역할 상관없이 로그인한 사람이면 됨 (JWT)
                 .anyRequest().authenticated())
             .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

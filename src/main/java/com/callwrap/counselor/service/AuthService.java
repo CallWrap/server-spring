@@ -34,7 +34,7 @@ public class AuthService {
             throw new CallWrapException(ErrorCode.INVALID_CREDENTIALS);
         }
 
-        String accessToken = jwtTokenProvider.createAccessToken(counselor.getId());
+        String accessToken = jwtTokenProvider.createAccessToken(counselor.getId(), counselor.getRole());
         String refreshToken = jwtTokenProvider.createRefreshToken(counselor.getId());
         return new TokenPair(accessToken, refreshToken, jwtTokenProvider.getAccessTokenExpirationSeconds());
     }
@@ -44,7 +44,11 @@ public class AuthService {
             throw new CallWrapException(ErrorCode.INVALID_TOKEN);
         }
         UUID counselorId = jwtTokenProvider.getCounselorId(refreshToken);
-        String accessToken = jwtTokenProvider.createAccessToken(counselorId);
+        // role은 refreshToken에 안 실려있다 — 재발급 시점의 최신 role을 DB에서 다시 읽는다
+        // (겸사겸사 계정이 삭제됐으면 여기서 걸러진다 — 예전엔 존재 확인 없이 바로 재발급했었다).
+        Counselor counselor = counselorRepository.findById(counselorId)
+                .orElseThrow(() -> new CallWrapException(ErrorCode.INVALID_TOKEN));
+        String accessToken = jwtTokenProvider.createAccessToken(counselor.getId(), counselor.getRole());
         return new TokenRefreshResponse(accessToken, jwtTokenProvider.getAccessTokenExpirationSeconds());
     }
 
