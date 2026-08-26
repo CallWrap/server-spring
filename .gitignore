@@ -13,3 +13,6 @@ out/
 **/src/main/resources/application-local.yml
 *.hprof
 
+
+# Eclipse/VSCode Java 빌드 산출물
+bin/
