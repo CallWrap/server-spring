@@ -38,12 +38,14 @@ public class ReviewConfirmService {
         AnalysisResult analysisResult = analysisResultRepository.findByCallId(reviewId)
             .orElseThrow(() -> new CallWrapException(ErrorCode.REVIEW_NOT_FOUND));
 
-        if (analysisResult.isConfirmed()) {
-            throw new CallWrapException(ErrorCode.REVIEW_ALREADY_CONFIRMED);
-        }
-
         analysisResult.applyConfirmedFields(request.confirmedFields());
-        analysisResult.confirm(counselorId, request.editedFields(), request.reviewSec());
+        // 재확정 허용(백엔드_요청사항 3번, A안) — "진행 중"으로 한 번 확정한 콜을 "완료"로 다시
+        // 확정하는 흐름이 정상 케이스라, 이미 확정된 콜이어도 막지 않고 값만 갱신한다.
+        if (analysisResult.isConfirmed()) {
+            analysisResult.reconfirm(counselorId, request.editedFields(), request.reviewSec());
+        } else {
+            analysisResult.confirm(counselorId, request.editedFields(), request.reviewSec());
+        }
         call.transitionTo(CallStatus.CONFIRMED);
         // 같은 큐를 보는 다른 상담사 화면에서도 이 콜이 바로 사라지도록(중복 작업 방지)
         eventPublisher.publishEvent(new CallStatusChangedEvent(call.getId(), CallStatus.CONFIRMED));

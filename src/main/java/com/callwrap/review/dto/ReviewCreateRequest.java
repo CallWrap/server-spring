@@ -19,6 +19,15 @@ public record ReviewCreateRequest(
     LocalDateTime callStartedAt,
 
     @Schema(description = "통화 시간(초)")
-    Integer callDurationSec
+    Integer callDurationSec,
+
+    @Schema(description = "민원인 이름 — 없을 수 있음(백엔드_요청사항_상담사화면.md 1번)")
+    String complainantName,
+
+    @Schema(description = "민원인 전화번호 — 있으면 이 값으로 동일인을 판별해 상담 이력을 잇는다")
+    String complainantPhone,
+
+    @Schema(description = "민원인 소속 기관")
+    String complainantOrg
 ) {
 }

@@ -3,6 +3,7 @@ package com.callwrap.analysis.repository;
 import com.callwrap.analysis.domain.AnalysisResult;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -77,6 +78,21 @@ public interface AnalysisResultRepository extends JpaRepository<AnalysisResult, 
         ORDER BY cnt DESC
         """, nativeQuery = true)
     List<NameCountProjection> countMaliciousByCounselor();
+
+    /**
+     * 민원인 상담 이력 집계(백엔드_요청사항_상담사화면.md 2번) — 이 민원인의 모든 콜(누가 받았든
+     * 전부)을 등급별로 센다. 목록 필터(counselor_id 조건)와는 조건 컬럼이 아예 달라 서로 간섭하지
+     * 않는다 — "다른 상담사가 처리해서 내 목록엔 안 보이는 콜도 이 집계엔 들어간다"가 의도한 동작.
+     * 키는 countByGrade()와 같은 한글 라벨(일반/칭찬콜/악성콜/미판정)을 쓴다.
+     */
+    @Query(value = """
+        SELECT COALESCE(ar.grade ->> 'value', '미판정') AS label, COUNT(*) AS cnt
+        FROM calls c
+        JOIN analysis_results ar ON ar.call_id = c.id
+        WHERE c.complainant_id = :complainantId
+        GROUP BY COALESCE(ar.grade ->> 'value', '미판정')
+        """, nativeQuery = true)
+    List<LabelCountProjection> countGradesByComplainant(@Param("complainantId") UUID complainantId);
 
     /**
      * 관리자 대시보드 "신뢰도" 메트릭용 — 판정 5종(유형·분류·등급·요약·후속필요)의 confidence를

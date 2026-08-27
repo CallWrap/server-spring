@@ -20,7 +20,12 @@ public record ReviewSummaryResponse(
     int highConfidenceFieldCount,
     int totalFieldCount,
     LocalDateTime callStartedAt,
+    Integer callDurationSec,
     LocalDateTime createdAt,
-    LocalDateTime updatedAt
+    LocalDateTime updatedAt,
+    ComplainantView complainant
 ) {
+    /** 목록 표의 민원인/소속/전화번호 3개 열용(백엔드_요청사항_상담사화면.md 1번). 없으면 null. */
+    public record ComplainantView(String name, String phone, String org) {
+    }
 }

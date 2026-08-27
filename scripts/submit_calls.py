@@ -112,6 +112,11 @@ def main() -> None:
                          "로컬 기본값은 application-local.yml의 callwrap.api-key.intake와 동일 — "
                          "배포 환경에선 CALLWRAP_API_KEY_INTAKE 값으로 바꿔서 넘길 것.")
     p.add_argument("--dry-run", action="store_true", help="접수하지 않고 대상 파일만 보여준다")
+    # 백엔드_요청사항_상담사화면.md 1번 — 전부 선택值이며, 폴더 전체(배치)에 같은 값이 적용된다.
+    # 파일별로 다른 민원인 정보를 넣어야 하면 이 스크립트 대신 API를 직접 호출할 것.
+    p.add_argument("--complainant-name", help="민원인 이름 (전체 배치에 동일 적용, 선택)")
+    p.add_argument("--complainant-phone", help="민원인 전화번호 — 있으면 이 번호로 동일인 이력이 이어진다 (선택)")
+    p.add_argument("--complainant-org", help="민원인 소속 기관 (선택)")
     args = p.parse_args()
 
     base = args.base_url.rstrip("/")
@@ -152,15 +157,22 @@ def main() -> None:
                 failed += 1
                 continue
 
+            body_payload = {
+                # 파일명을 그대로 쓴다 — 같은 파일을 두 번 넣으면 서버가 409로 거른다
+                "sourceRequestId": src.name,
+                "counselorId": counselor,
+                "audioFileUrl": audio_uri,
+                "callStartedAt": datetime.fromtimestamp(src.stat().st_mtime).isoformat(timespec="seconds"),
+            }
+            if args.complainant_name:
+                body_payload["complainantName"] = args.complainant_name
+            if args.complainant_phone:
+                body_payload["complainantPhone"] = args.complainant_phone
+            if args.complainant_org:
+                body_payload["complainantOrg"] = args.complainant_org
+
             status, body = call_api(
-                f"{base}/api/reviews", method="POST", api_key=args.api_key,
-                body={
-                    # 파일명을 그대로 쓴다 — 같은 파일을 두 번 넣으면 서버가 409로 거른다
-                    "sourceRequestId": src.name,
-                    "counselorId": counselor,
-                    "audioFileUrl": audio_uri,
-                    "callStartedAt": datetime.fromtimestamp(src.stat().st_mtime).isoformat(timespec="seconds"),
-                },
+                f"{base}/api/reviews", method="POST", api_key=args.api_key, body=body_payload,
             )
             if status == 202:
                 print(f"{head} → 접수 {body.get('reviewId', '')[:8]}")

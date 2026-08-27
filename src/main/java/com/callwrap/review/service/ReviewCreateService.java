@@ -20,6 +20,7 @@ public class ReviewCreateService {
 
     private final CallRepository callRepository;
     private final JobDispatchService jobDispatchService;
+    private final ComplainantService complainantService;
 
     @Transactional
     public ReviewCreateResponse create(ReviewCreateRequest request) {
@@ -27,12 +28,16 @@ public class ReviewCreateService {
             throw new CallWrapException(ErrorCode.DUPLICATE_SOURCE_REQUEST);
         }
 
+        UUID complainantId = complainantService.resolve(
+            request.complainantName(), request.complainantPhone(), request.complainantOrg());
+
         Call call = Call.builder()
             .counselorId(UUID.fromString(request.counselorId()))
             .audioPath(request.audioFileUrl())
             .sourceRequestId(request.sourceRequestId())
             .callStartedAt(request.callStartedAt())
             .callDurationSec(request.callDurationSec())
+            .complainantId(complainantId)
             .build();
         callRepository.save(call);
 

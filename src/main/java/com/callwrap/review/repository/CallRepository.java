@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -18,9 +19,24 @@ public interface CallRepository extends JpaRepository<Call, UUID> {
 
     boolean existsBySourceRequestId(String sourceRequestId);
 
-    // status 지정 시 idx_calls_status를 그대로 태운다. status가 null이면 전체 목록(정렬만)
-    @Query("SELECT c FROM Call c WHERE (:status IS NULL OR c.status = :status) ORDER BY c.updatedAt DESC")
-    Page<Call> searchReviews(@Param("status") CallStatus status, Pageable pageable);
+    /**
+     * 상담사 본인 목록만(백엔드_요청사항_상담사화면.md 5번) + 기간 필터(6-2번).
+     * idx_calls_counselor_id/idx_calls_status를 그대로 태운다. status가 null이면 그 조건은 무시.
+     * 상세 조회(getDetail)는 이 조건을 타지 않는다 — 후속 처리·상담 이력이 상담사 제한 없이 열려야 해서다.
+     *
+     * from/to는 ReviewQueryService가 항상 값(필터 없으면 아주 넓은 sentinel 범위)을 채워 넘긴다 —
+     * PostgreSQL은 "오직 IS NULL 비교에만 쓰이는 파라미터"의 타입을 못 정해서
+     * "could not determine data type of parameter"로 죽는다(파라미터가 실제로 null이어도 마찬가지).
+     * call_started_at이 비어있는 콜(선택 항목이라 null일 수 있다)도 필터 없을 때는 그대로 나와야
+     * 하므로 created_at(항상 값 있음)으로 대체해서 비교한다.
+     */
+    @Query("SELECT c FROM Call c WHERE c.counselorId = :counselorId "
+         + "AND (:status IS NULL OR c.status = :status) "
+         + "AND COALESCE(c.callStartedAt, c.createdAt) >= :from "
+         + "AND COALESCE(c.callStartedAt, c.createdAt) < :to "
+         + "ORDER BY c.updatedAt DESC")
+    Page<Call> searchReviews(@Param("counselorId") UUID counselorId, @Param("status") CallStatus status,
+                              @Param("from") LocalDateTime from, @Param("to") LocalDateTime to, Pageable pageable);
 
     /**
      * 관리자 대시보드 개요용. 예전엔 목록 API로 최근 N건을 받아와 프론트에서 상태별로 세었는데,

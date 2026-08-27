@@ -67,14 +67,19 @@ public class Call extends BaseTimeEntity {
     @Column(name = "call_duration_sec")
     private Integer callDurationSec;
 
+    /** 민원인(백엔드_요청사항_상담사화면.md 1번, A안) — complainants 테이블 참조. 정보가 전혀 없으면 null. */
+    @Column(name = "complainant_id")
+    private UUID complainantId;
+
     @Builder
     private Call(UUID counselorId, String audioPath, String sourceRequestId,
-                 java.time.LocalDateTime callStartedAt, Integer callDurationSec) {
+                 java.time.LocalDateTime callStartedAt, Integer callDurationSec, UUID complainantId) {
         this.counselorId = counselorId;
         this.audioPath = audioPath;
         this.sourceRequestId = sourceRequestId;
         this.callStartedAt = callStartedAt;
         this.callDurationSec = callDurationSec;
+        this.complainantId = complainantId;
         this.status = CallStatus.UPLOADED;
         this.retryCount = 0;
     }

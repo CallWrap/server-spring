@@ -7,6 +7,8 @@ import com.callwrap.review.domain.Call;
 import com.callwrap.review.domain.CallStatus;
 import com.callwrap.review.dto.ReviewListResponse;
 import com.callwrap.review.repository.CallRepository;
+import com.callwrap.review.repository.ComplainantRepository;
+import com.callwrap.review.repository.FollowupNoteRepository;
 import com.callwrap.transcript.repository.TranscriptRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,6 +40,10 @@ class ReviewQueryServiceTest {
     private AnalysisResultRepository analysisResultRepository;
     @Mock
     private TranscriptRepository transcriptRepository;
+    @Mock
+    private ComplainantRepository complainantRepository;
+    @Mock
+    private FollowupNoteRepository followupNoteRepository;
     @InjectMocks
     private ReviewQueryService reviewQueryService;
 
@@ -45,11 +51,11 @@ class ReviewQueryServiceTest {
     void 목록에_접수순번이_실린다() {
         Call call = call();
         ReflectionTestUtils.setField(call, "callNo", 7);
-        when(callRepository.searchReviews(any(), any(Pageable.class)))
+        when(callRepository.searchReviews(any(), any(), any(), any(), any(Pageable.class)))
             .thenReturn(new PageImpl<>(List.of(call)));
         when(analysisResultRepository.findByCallIdIn(List.of(call.getId()))).thenReturn(List.of());
 
-        ReviewListResponse result = reviewQueryService.list(null, 0, 20);
+        ReviewListResponse result = reviewQueryService.list(UUID.randomUUID(), null, null, null, 0, 20);
 
         assertThat(result.items()).singleElement().extracting("callNo").isEqualTo(7);
     }
@@ -57,12 +63,12 @@ class ReviewQueryServiceTest {
     @Test
     void 목록에_요약_제목이_실린다() {
         Call call = call();
-        when(callRepository.searchReviews(any(), any(Pageable.class)))
+        when(callRepository.searchReviews(any(), any(), any(), any(), any(Pageable.class)))
             .thenReturn(new PageImpl<>(List.of(call)));
         when(analysisResultRepository.findByCallIdIn(List.of(call.getId())))
             .thenReturn(List.of(analysisWithTitle(call.getId(), "지난달 과오결제 취소 요청")));
 
-        ReviewListResponse result = reviewQueryService.list(null, 0, 20);
+        ReviewListResponse result = reviewQueryService.list(UUID.randomUUID(), null, null, null, 0, 20);
 
         assertThat(result.items()).singleElement()
             .extracting("title").isEqualTo("지난달 과오결제 취소 요청");
@@ -71,11 +77,11 @@ class ReviewQueryServiceTest {
     @Test
     void 분석_전이면_제목은_null이다() {
         Call call = call();
-        when(callRepository.searchReviews(any(), any(Pageable.class)))
+        when(callRepository.searchReviews(any(), any(), any(), any(), any(Pageable.class)))
             .thenReturn(new PageImpl<>(List.of(call)));
         when(analysisResultRepository.findByCallIdIn(List.of(call.getId()))).thenReturn(List.of());
 
-        ReviewListResponse result = reviewQueryService.list(null, 0, 20);
+        ReviewListResponse result = reviewQueryService.list(UUID.randomUUID(), null, null, null, 0, 20);
 
         assertThat(result.items()).singleElement().extracting("title").isNull();
     }
@@ -85,12 +91,12 @@ class ReviewQueryServiceTest {
         // Ollama가 꺼지면 grade·summary·needsFollowup이 전부 null로 들어온다 (부분 실패 허용).
         // 이때도 대기열은 떠야 한다 — 예전엔 여기서 목록 API 전체가 NPE로 죽었다.
         Call call = call();
-        when(callRepository.searchReviews(any(), any(Pageable.class)))
+        when(callRepository.searchReviews(any(), any(), any(), any(), any(Pageable.class)))
             .thenReturn(new PageImpl<>(List.of(call)));
         when(analysisResultRepository.findByCallIdIn(List.of(call.getId())))
             .thenReturn(List.of(AnalysisResult.builder().callId(call.getId()).build()));
 
-        ReviewListResponse result = reviewQueryService.list(null, 0, 20);
+        ReviewListResponse result = reviewQueryService.list(UUID.randomUUID(), null, null, null, 0, 20);
 
         assertThat(result.items()).singleElement()
             .satisfies(item -> {

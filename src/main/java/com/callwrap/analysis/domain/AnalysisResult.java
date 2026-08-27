@@ -162,11 +162,30 @@ public class AnalysisResult {
     @Column(name = "review_sec")
     private Integer reviewSec;
 
+    /**
+     * 몇 번째 확정인지(1부터). confirmedAt/confirmedByCounselorId는 "최근 상태"만 남기고 덮어써지므로,
+     * 재확정(백엔드_요청사항 3번)이 반복돼도 최소한 "몇 번 바뀌었는지"는 여기 남는다.
+     */
+    @Column(name = "reconfirm_count", nullable = false)
+    private Integer reconfirmCount = 0;
+
     public void confirm(UUID counselorId, List<String> editedFields, Integer reviewSec) {
         this.confirmedByCounselorId = counselorId;
         this.confirmedAt = LocalDateTime.now();
         this.editedFields = editedFields;
         this.reviewSec = reviewSec;
+        this.reconfirmCount = 1;
+    }
+
+    /**
+     * 재확정(백엔드_요청사항 3번, A안) — 이미 확정된 콜을 다시 확정한다.
+     * confirmedAt(최초 확정 시각)은 그대로 두고, "누가·무엇을" 나타내는 필드만 최신값으로 갱신한다.
+     */
+    public void reconfirm(UUID counselorId, List<String> editedFields, Integer reviewSec) {
+        this.confirmedByCounselorId = counselorId;
+        this.editedFields = editedFields;
+        this.reviewSec = reviewSec;
+        this.reconfirmCount = (this.reconfirmCount == null ? 1 : this.reconfirmCount) + 1;
     }
 
     public boolean isConfirmed() {

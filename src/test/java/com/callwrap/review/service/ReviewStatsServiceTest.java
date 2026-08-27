@@ -38,6 +38,7 @@ class ReviewStatsServiceTest {
             labelCount("미분류", 10L)
         ));
         when(analysisResultRepository.averageReviewSec()).thenReturn(142.5);
+        when(analysisResultRepository.getConfidenceStats()).thenReturn(confidenceStats(0L, 0L, null));
 
         ReviewStatsResponse stats = service().getStats();
 
@@ -54,6 +55,7 @@ class ReviewStatsServiceTest {
         when(analysisResultRepository.countByGrade()).thenReturn(List.of());
         when(analysisResultRepository.countByConsultationType()).thenReturn(List.of());
         when(analysisResultRepository.averageReviewSec()).thenReturn(null);
+        when(analysisResultRepository.getConfidenceStats()).thenReturn(confidenceStats(0L, 0L, null));
 
         ReviewStatsResponse stats = service().getStats();
 
@@ -76,6 +78,15 @@ class ReviewStatsServiceTest {
         return new LabelCountProjection() {
             public String getLabel() { return label; }
             public Long getCnt() { return cnt; }
+        };
+    }
+
+    private AnalysisResultRepository.ConfidenceStatsProjection confidenceStats(
+            Long totalJudgedCount, Long highConfidenceCount, Double avgConfidence) {
+        return new AnalysisResultRepository.ConfidenceStatsProjection() {
+            public Long getTotalJudgedCount() { return totalJudgedCount; }
+            public Long getHighConfidenceCount() { return highConfidenceCount; }
+            public Double getAvgConfidence() { return avgConfidence; }
         };
     }
 }
