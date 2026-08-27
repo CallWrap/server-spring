@@ -9,6 +9,12 @@ import java.util.Map;
 public record ReviewStatsResponse(
     long totalCalls,
     Map<String, Long> statusCounts,
+    /**
+     * 확정(CONFIRMED)된 콜을 후속 처리 필요 여부로 나눈 수 — 화면의 "진행 중"/"완료" 카운터용.
+     * statusCounts의 CONFIRMED가 이 둘의 합이다.
+     */
+    long inProgressCount,
+    long completedCount,
     Map<String, Long> gradeCounts,
     Map<String, Long> typeCounts,
     Double avgReviewSec,

@@ -29,6 +29,17 @@ public class ReviewStatsService {
             .collect(Collectors.toMap(row -> row.getStatus().name(), CallRepository.StatusCountProjection::getCnt));
         long totalCalls = statusCounts.values().stream().mapToLong(Long::longValue).sum();
 
+        // CONFIRMED를 후속 처리 필요 여부로 갈라 "진행 중"/"완료"로 나눈다.
+        long inProgressCount = 0;
+        long completedCount = 0;
+        for (CallRepository.FollowupSplitProjection row : callRepository.countConfirmedByFollowup()) {
+            if (row.getFollowup()) {
+                inProgressCount = row.getCnt();
+            } else {
+                completedCount = row.getCnt();
+            }
+        }
+
         Map<String, Long> gradeCounts = analysisResultRepository.countByGrade().stream()
             .collect(Collectors.toMap(
                 AnalysisResultRepository.LabelCountProjection::getLabel,
@@ -58,7 +69,8 @@ public class ReviewStatsService {
             ? confidenceStats.getHighConfidenceCount() / (double) totalJudgedCount
             : null;
 
-        return new ReviewStatsResponse(totalCalls, statusCounts, gradeCounts, typeCounts, avgReviewSec,
+        return new ReviewStatsResponse(totalCalls, statusCounts, inProgressCount, completedCount,
+            gradeCounts, typeCounts, avgReviewSec,
             hourlyThroughput, maliciousByCounselor, avgConfidence, highConfidenceRate);
     }
 }

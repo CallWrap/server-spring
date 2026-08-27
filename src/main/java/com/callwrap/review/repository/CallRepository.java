@@ -47,6 +47,26 @@ public interface CallRepository extends JpaRepository<Call, UUID> {
     List<StatusCountProjection> countByStatus();
 
     /**
+     * 상담사 화면 상단바의 "진행 중 / 완료" 카운터용. CallStatus에는 `진행 중`이 없고
+     * CONFIRMED + needs_followup=true를 그렇게 쓰기로 했는데(백엔드_요청사항 7번 우회안),
+     * countByStatus()는 CONFIRMED를 한 덩어리로만 줘서 관리자 화면에서 둘을 못 나눈다.
+     * 확정된 콜만 needs_followup 기준으로 갈라서 센다.
+     */
+    @Query(value = """
+        SELECT COALESCE(ar.needs_followup ->> 'value', 'false') = 'true' AS followup, COUNT(*) AS cnt
+        FROM calls c
+        LEFT JOIN analysis_results ar ON ar.call_id = c.id
+        WHERE c.status = 'CONFIRMED'
+        GROUP BY 1
+        """, nativeQuery = true)
+    List<FollowupSplitProjection> countConfirmedByFollowup();
+
+    interface FollowupSplitProjection {
+        boolean getFollowup();
+        long getCnt();
+    }
+
+    /**
      * 관리자 대시보드 "시간대별 처리량" 차트용. 오늘 자정 이후 접수된 콜을 시간(0~23) 단위로 센다.
      * hour는 문자열로 반환 — 프론트가 Record&lt;string, number&gt;로 그대로 받는다.
      */
