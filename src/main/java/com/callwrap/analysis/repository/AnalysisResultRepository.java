@@ -84,11 +84,15 @@ public interface AnalysisResultRepository extends JpaRepository<AnalysisResult, 
      * 전부)을 등급별로 센다. 목록 필터(counselor_id 조건)와는 조건 컬럼이 아예 달라 서로 간섭하지
      * 않는다 — "다른 상담사가 처리해서 내 목록엔 안 보이는 콜도 이 집계엔 들어간다"가 의도한 동작.
      * 키는 countByGrade()와 같은 한글 라벨(일반/칭찬콜/악성콜/미판정)을 쓴다.
+     *
+     * LEFT JOIN인 이유: 접수만 되고 아직 분석 결과 행이 없는 콜(PROCESSING 등)도 상담 이력에는
+     * 포함돼야 한다. INNER JOIN이면 그런 콜이 통째로 빠져서 "총 N건"이 실제 상담 횟수보다 적게
+     * 나온다 — COALESCE로 '미판정'을 만들어 두고도 정작 가장 흔한 미판정 케이스를 놓치게 된다.
      */
     @Query(value = """
         SELECT COALESCE(ar.grade ->> 'value', '미판정') AS label, COUNT(*) AS cnt
         FROM calls c
-        JOIN analysis_results ar ON ar.call_id = c.id
+        LEFT JOIN analysis_results ar ON ar.call_id = c.id
         WHERE c.complainant_id = :complainantId
         GROUP BY COALESCE(ar.grade ->> 'value', '미판정')
         """, nativeQuery = true)
