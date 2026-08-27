@@ -53,7 +53,6 @@ public interface AnalysisResultRepository extends JpaRepository<AnalysisResult, 
         """, nativeQuery = true)
     List<LabelCountProjection> countByGrade();
 
-    /** 상담유형 분포. consultation_type은 2026-08-20 SR유형(8종) 모델이 파이프라인에 병합됐다. */
     /** 상담유형 분포. sr_type.py(SR유형 8종) 모델이 analyze()에 병합되어(2026-08-20) 실제 분류가 채워진다. */
     @Query(value = """
         SELECT COALESCE(ar.consultation_type ->> 'value', '미분류') AS label, COUNT(*) AS cnt
@@ -80,18 +79,34 @@ public interface AnalysisResultRepository extends JpaRepository<AnalysisResult, 
     List<NameCountProjection> countMaliciousByCounselor();
 
     /**
-     * 관리자 대시보드 "상담사별 악성콜 밸런싱" 차트용. 특정 상담사에게 악성콜이 몰리지 않는지
-     * 보는 게 목적이라, 콜을 받은 상담사가 아니라 실제로 검토·확정한 상담사(confirmed_by_counselor_id)
-     * 기준으로 센다 — 아직 확정 안 된 악성콜은 포함하지 않는다.
+     * 관리자 대시보드 "신뢰도" 메트릭용 — 판정 5종(유형·분류·등급·요약·후속필요)의 confidence를
+     * 한 컬럼으로 펼쳐서(UNION ALL) 집계한다. ReviewQueryService.HIGH_CONFIDENCE_THRESHOLD(0.9)와
+     * 같은 5개 필드·같은 기준을 쓴다 — 목록 화면의 highConfidenceFieldCount/totalFieldCount와
+     * 숫자가 어긋나지 않도록. confidence가 없는(아직 판정 자체가 안 된) 필드는 집계에서 빠진다.
      */
     @Query(value = """
-        SELECT co.name AS label, COUNT(*) AS cnt
-        FROM analysis_results ar
-        JOIN counselors co ON co.id = ar.confirmed_by_counselor_id
-        WHERE ar.grade ->> 'value' = '악성콜' AND ar.confirmed_by_counselor_id IS NOT NULL
-        GROUP BY co.name
+        SELECT
+            COUNT(*) AS totalJudgedCount,
+            COUNT(*) FILTER (WHERE confidence >= 0.9) AS highConfidenceCount,
+            AVG(confidence) AS avgConfidence
+        FROM (
+            SELECT (ar.consultation_type ->> 'confidence')::float AS confidence
+                FROM analysis_results ar WHERE ar.consultation_type ->> 'confidence' IS NOT NULL
+            UNION ALL
+            SELECT (ar.consultation_category ->> 'confidence')::float
+                FROM analysis_results ar WHERE ar.consultation_category ->> 'confidence' IS NOT NULL
+            UNION ALL
+            SELECT (ar.grade ->> 'confidence')::float
+                FROM analysis_results ar WHERE ar.grade ->> 'confidence' IS NOT NULL
+            UNION ALL
+            SELECT (ar.summary ->> 'confidence')::float
+                FROM analysis_results ar WHERE ar.summary ->> 'confidence' IS NOT NULL
+            UNION ALL
+            SELECT (ar.needs_followup ->> 'confidence')::float
+                FROM analysis_results ar WHERE ar.needs_followup ->> 'confidence' IS NOT NULL
+        ) confidences
         """, nativeQuery = true)
-    List<LabelCountProjection> maliciousByCounselor();
+    ConfidenceStatsProjection getConfidenceStats();
 
     interface LabelCountProjection {
         String getLabel();
@@ -101,5 +116,11 @@ public interface AnalysisResultRepository extends JpaRepository<AnalysisResult, 
     interface NameCountProjection {
         String getName();
         Long getCnt();
+    }
+
+    interface ConfidenceStatsProjection {
+        Long getTotalJudgedCount();
+        Long getHighConfidenceCount();
+        Double getAvgConfidence();
     }
 }

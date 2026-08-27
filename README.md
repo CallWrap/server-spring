@@ -54,7 +54,7 @@ UPLOADED → PROCESSING → DONE / NEEDS_HUMAN_REVIEW / FAILED → CONFIRMED
 
 ## server-spring이 담당하는 것
 
-- **인증** — JWT 발급/재발급/로그아웃 (`counselor` 도메인)
+- **인증·인가** — JWT 발급/재발급/로그아웃, role(COUNSELOR/ADMIN) 기반 화면·API 접근 제어 (`counselor` 도메인)
 - **콜 접수** — presigned URL 발급(오디오는 Spring을 거치지 않고 클라이언트가 스토리지에 직접 업로드) 후 `JobRequest` 발행, 즉시 202 반환
 - **파이프라인 오케스트레이션** — RabbitMQ를 통한 비동기 Job 발행/결과 수신, 메시지 계약(JSON Schema) 검증, 장애 시 DLQ·재시도
 - **검토 워크플로우** — AI 판정 결과 조회, 상담사 수정·확정(`confirm`)
@@ -76,6 +76,7 @@ UPLOADED → PROCESSING → DONE / NEEDS_HUMAN_REVIEW / FAILED → CONFIRMED
 8. **부하 테스트** — `loadtest/`에 Locust/k6 기반 시나리오(콜 접수→처리 완료까지의 파이프라인 부하) 준비.
 9. **실시간 갱신(SSE)** — 콜 상태가 바뀔 때마다(`PROCESSING`/`DONE`/`NEEDS_HUMAN_REVIEW`/`FAILED`/`CONFIRMED`) `/api/reviews/stream`으로 이벤트를 밀어줘서, 상담사 화면이 폴링 없이 대기열을 갱신한다. `@TransactionalEventListener(AFTER_COMMIT)`로 트랜잭션이 실제로 커밋된 뒤에만 내보낸다.
 10. **관리자 대시보드 집계** — 상태별·등급별·유형별 건수와 평균 검토 시간을 `/api/reviews/stats`에서 DB `GROUP BY`/`AVG`로 직접 계산해 반환한다. 목록 API로 콜을 가져와 프론트에서 세는 대신 이 엔드포인트를 쓴다. 시간대별 처리량(`hourlyThroughput`)과 상담사별 악성콜 분포(`maliciousByCounselor`)도 같은 방식으로 계산해 함께 내려준다.
+11. **역할 기반 접근 제어(RBAC)** — 상담사는 콜 검토(대기열·후속처리·처리완료)만, 관리자는 모니터링 대시보드(FAQ 검수 포함)만 쓰도록 화면과 API 양쪽에서 완전히 분리한다. 자세한 구조는 아래 "인증 설계" 참고.
 
 ## 인증 설계
 
@@ -93,6 +94,15 @@ UPLOADED → PROCESSING → DONE / NEEDS_HUMAN_REVIEW / FAILED → CONFIRMED
 두 필터 모두 `SecurityFilterChain`에서 `UsernamePasswordAuthenticationFilter` 앞에 등록되며, "토큰/키가
 있으면 인증 컨텍스트를 채우고 없어도 필터 자체는 막지 않는다" — 실제 차단은 `authorizeHttpRequests`의
 경로별 규칙이 담당한다. 인증(누가 부르는가)과 인가(무엇을 할 수 있는가)를 필터와 규칙으로 분리한 구조다.
+
+### 역할 기반 접근 제어 (RBAC)
+
+로그인한 상담사는 `role`(`COUNSELOR` / `ADMIN`) 하나로 접근 범위가 완전히 갈린다. 상담사는 콜 검토(대기열·후속처리·처리완료)만, 관리자는 모니터링 대시보드(FAQ 검수 포함)만 쓴다 — 두 역할의 화면은 서로 겹치지 않는다.
+
+- `role`은 로그인 시 JWT 클레임에 실린다(`JwtTokenProvider.createAccessToken`). `refreshToken`에는 넣지 않고, 재발급(`/api/auth/refresh`) 때마다 DB에서 최신 role을 다시 읽어 새 accessToken에 반영한다 — role이 나중에 바뀌어도 만료 전까지 옛 값이 남지 않는다.
+- `JwtAuthenticationFilter`가 role을 `GrantedAuthority`로 SecurityContext에 심고, `SecurityConfig`가 이를 근거로 인가한다: FAQ 검수(`/api/faq-entries/**`)와 대시보드 통계(`GET /api/reviews/stats`)는 `ADMIN`만, 검토 확정(`PATCH /api/reviews/{id}/confirm`)은 `COUNSELOR`만 호출 가능하다. 나머지(대기열 조회 등)는 역할 무관하게 로그인만 하면 된다 — 두 역할이 함께 쓰는 인프라이기 때문이다.
+- 프론트(`web`)도 같은 role로 사이드바·라우트를 나눠서, 사이드바 링크를 안 보여주는 것을 넘어 주소창 직접 접근도 자기 권한 밖 화면이면 리다이렉트한다. 백엔드 인가 규칙이 최종 방어선이고, 프론트 분리는 UX 차원이다.
+- 회원가입 API가 없는 POC 규모라 관리자 계정을 만들 방법이 마땅치 않았다. `DevAccountSeeder`(`ApplicationRunner`)가 앱 기동 시 `admin`/`admin`(ADMIN), `test`/`test`(COUNSELOR) 계정을 자동 생성한다(`existsByLoginId`로 확인 후 없을 때만 생성) — DB 볼륨이 초기화돼도 재기동만 하면 복구된다.
 
 ## 기술 스택
 
@@ -117,14 +127,14 @@ UPLOADED → PROCESSING → DONE / NEEDS_HUMAN_REVIEW / FAILED → CONFIRMED
 | POST | `/api/reviews` | 콜 접수 — 즉시 202 반환, 분석은 비동기로 트리거 | API Key(사보원) |
 | GET | `/api/reviews` | 검토 목록 조회 (상태 필터, 페이지네이션) | JWT |
 | GET | `/api/reviews/{reviewId}` | 검토 상세 조회 | JWT |
-| GET | `/api/reviews/stats` | 관리자 대시보드 집계 (상태·등급·유형별 건수, 평균 검토 시간, 시간대별 처리량, 상담사별 악성콜 분포) | JWT |
+| GET | `/api/reviews/stats` | 관리자 대시보드 집계 (상태·등급·유형별 건수, 평균 검토 시간, 시간대별 처리량, 상담사별 악성콜 분포) | JWT(ADMIN) |
 | GET | `/api/reviews/stream` | 콜 상태 변경 실시간 스트림 (SSE) | JWT |
-| PATCH | `/api/reviews/{reviewId}/confirm` | 검토 확정 | JWT |
-| POST | `/api/faq-entries/generate-batch` | FAQ 배치 생성 트리거 (수동, 새벽 4시 자동 실행도 동일 로직) | JWT |
-| GET | `/api/faq-entries` | FAQ 목록 조회 (상태 필터) | JWT |
-| PATCH | `/api/faq-entries/{id}` | FAQ 초안 수정 | JWT |
-| POST | `/api/faq-entries/{id}/publish` | FAQ 게시 | JWT |
-| POST | `/api/faq-entries/{id}/discard` | FAQ 폐기 | JWT |
+| PATCH | `/api/reviews/{reviewId}/confirm` | 검토 확정 | JWT(COUNSELOR) |
+| POST | `/api/faq-entries/generate-batch` | FAQ 배치 생성 트리거 (수동, 새벽 4시 자동 실행도 동일 로직) | JWT(ADMIN) |
+| GET | `/api/faq-entries` | FAQ 목록 조회 (상태 필터) | JWT(ADMIN) |
+| PATCH | `/api/faq-entries/{id}` | FAQ 초안 수정 | JWT(ADMIN) |
+| POST | `/api/faq-entries/{id}/publish` | FAQ 게시 | JWT(ADMIN) |
+| POST | `/api/faq-entries/{id}/discard` | FAQ 폐기 | JWT(ADMIN) |
 | GET | `/api/internal/faq/candidates` | FAQ 후보 콜 조회 (FastAPI 전용) | API Key(내부) |
 | POST | `/api/internal/faq/entries` | FAQ 초안 등록 (FastAPI 전용) | API Key(내부) |
 
@@ -163,6 +173,7 @@ com.callwrap
     └── service       # Job 디스패치 / 결과 처리
 ```
 
+
 ## 로컬 실행
 
 ```bash
@@ -178,6 +189,9 @@ Spring 앱은 도커 안이 아니라 호스트에서 `./gradlew bootRun`으로 
 | Swagger UI | http://localhost:8080/swagger-ui.html |
 | RabbitMQ 관리 콘솔 | http://localhost:15672 (guest/guest) |
 
+계정은 따로 회원가입할 필요 없이 앱이 처음 뜰 때 자동으로 만들어진다(`DevAccountSeeder`) —
+`admin`/`admin`(관리자), `test`/`test`(상담사). 이미 있으면 건드리지 않는다.
+
 필요 환경변수:
 
 | 변수 | 설명 |
@@ -187,8 +201,3 @@ Spring 앱은 도커 안이 아니라 호스트에서 `./gradlew bootRun`으로 
 | `CALLWRAP_API_KEY_INTAKE` | 사회보장정보원 콜 접수 시스템 인증용 (`X-API-Key`) |
 | `CALLWRAP_API_KEY_INTERNAL` | FastAPI 배치 생성기 인증용 (`X-API-Key`). `server-fastapi`의 `SPRING_INTERNAL_API_KEY`와 동일해야 함 |
 
-## 알려진 제한사항
-
-- **로그아웃 시 refreshToken 서버측 폐기(블랙리스트) 미구현** — 현재는 쿠키 무효화만 수행한다.
-- **메시지 계약 검증 로직은 구현되어 있으나 fixture 기반 단위테스트는 보강 필요**
-- **`call_id` 멱등 처리**는 별도 이슈로 진행 중

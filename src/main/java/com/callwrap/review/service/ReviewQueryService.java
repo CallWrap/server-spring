@@ -2,6 +2,7 @@ package com.callwrap.review.service;
 
 import com.callwrap.analysis.domain.AnalysisResult;
 import com.callwrap.analysis.repository.AnalysisResultRepository;
+import com.callwrap.audio.service.AudioUploadService;
 import com.callwrap.global.common.Judgment;
 import com.callwrap.global.exception.CallWrapException;
 import com.callwrap.global.exception.ErrorCode;
@@ -39,6 +40,7 @@ public class ReviewQueryService {
     private final CallRepository callRepository;
     private final AnalysisResultRepository analysisResultRepository;
     private final TranscriptRepository transcriptRepository;
+    private final AudioUploadService audioUploadService;
 
     @Transactional(readOnly = true)
     public ReviewListResponse list(CallStatus status, int page, int size) {
@@ -115,6 +117,10 @@ public class ReviewQueryService {
             analysis != null ? analysis.getGrade() : null
         );
 
+        // 저장된 audioPath는 "s3://bucket/key" 내부 참조라 브라우저가 못 연다 — 조회 시점마다
+        // 짧게 살아있는 프리사인 GET URL로 바꿔서 내려준다.
+        String audioUrl = audioUploadService.presignPlaybackUrl(call.getAudioPath());
+
         return new ReviewDetailResponse(
             call.getId(),
             call.getCallNo(),
@@ -126,6 +132,7 @@ public class ReviewQueryService {
             analysis != null ? analysis.getSummary() : null,
             analysis != null ? analysis.getNeedsFollowup() : null,
             analysis != null ? analysis.getNeedsFaq() : null,
+            audioUrl,
             transcript,
             analysis != null ? toFailureMessages(analysis) : List.of(),
             analysis != null ? analysis.getConfirmedAt() : null,

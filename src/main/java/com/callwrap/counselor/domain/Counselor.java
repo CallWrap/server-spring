@@ -3,6 +3,8 @@ package com.callwrap.counselor.domain;
 import com.callwrap.global.common.BaseTimeEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -33,10 +35,16 @@ public class Counselor extends BaseTimeEntity {
     @Column(nullable = false, length = 100)
     private String name;
 
+    // DB 컬럼은 V7 마이그레이션에서 기존 행에 DEFAULT 'COUNSELOR'로 채워졌다 — 기존 계정은 전부 상담사로 남는다.
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private CounselorRole role;
+
     @Builder
-    private Counselor(String loginId, String passwordHash, String name) {
+    private Counselor(String loginId, String passwordHash, String name, CounselorRole role) {
         this.loginId = loginId;
         this.passwordHash = passwordHash;
         this.name = name;
+        this.role = role;
     }
 }

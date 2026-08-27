@@ -18,6 +18,7 @@ public record ReviewDetailResponse(
     Judgment<Object> summary,
     Judgment<Object> needsFollowup,
     Judgment<Object> needsFaq,
+    String audioUrl,
     List<Utterance> transcript,
     List<String> failures,
     LocalDateTime confirmedAt,

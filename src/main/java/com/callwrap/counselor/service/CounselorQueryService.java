@@ -21,6 +21,6 @@ public class CounselorQueryService {
     public CounselorMeResponse getMe(UUID counselorId) {
         Counselor counselor = counselorRepository.findById(counselorId)
                 .orElseThrow(() -> new CallWrapException(ErrorCode.INVALID_TOKEN));
-        return new CounselorMeResponse(counselor.getId(), counselor.getName(), counselor.getLoginId());
+        return new CounselorMeResponse(counselor.getId(), counselor.getName(), counselor.getLoginId(), counselor.getRole());
     }
 }

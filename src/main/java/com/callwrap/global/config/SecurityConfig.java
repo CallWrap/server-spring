@@ -1,5 +1,6 @@
 package com.callwrap.global.config;
 
+import com.callwrap.counselor.domain.CounselorRole;
 import com.callwrap.global.security.ApiKeyAuthFilter;
 import com.callwrap.global.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
@@ -44,12 +45,22 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
                 // 개발 도구·헬스체크
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/actuator/health").permitAll()
+                // 검토 목록 실시간 갱신 스트림 — 네이티브 EventSource는 Authorization 헤더를 못 보낸다
+                // (브라우저 표준 제약, 쿠키만 가능). 이 스트림이 보내는 데이터는 {callId, status}뿐이고
+                // ReviewQueryService.list()에도 상담사별 필터링이 없어 인증해도 전원이 같은 걸 본다 —
+                // 굳이 인증을 강제할 실익이 없어 permitAll로 둔다.
+                .requestMatchers(HttpMethod.GET, "/api/reviews/stream").permitAll()
                 // 사보원 콜 접수 시스템 전용
                 .requestMatchers(HttpMethod.POST, "/api/reviews", "/api/audio/upload-url")
                     .hasAuthority(ApiKeyAuthFilter.SCOPE_INTAKE)
                 // FastAPI 배치 생성기 전용
                 .requestMatchers("/api/internal/faq/**").hasAuthority(ApiKeyAuthFilter.SCOPE_INTERNAL)
-                // 나머지는 로그인한 상담사만 (JWT)
+                // 관리자 전용 — FAQ 검수 화면, 대시보드 집계(개요 탭). 상담사는 접근 자체가 안 되게 막는다.
+                .requestMatchers("/api/faq-entries/**").hasAuthority(CounselorRole.ADMIN.name())
+                .requestMatchers(HttpMethod.GET, "/api/reviews/stats").hasAuthority(CounselorRole.ADMIN.name())
+                // 상담사 전용 — 콜 검토 확정. 관리자는 검토 업무를 하지 않는다.
+                .requestMatchers(HttpMethod.PATCH, "/api/reviews/*/confirm").hasAuthority(CounselorRole.COUNSELOR.name())
+                // 나머지(대기열 조회 등)는 역할 상관없이 로그인한 사람이면 됨 (JWT)
                 .anyRequest().authenticated())
             .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
