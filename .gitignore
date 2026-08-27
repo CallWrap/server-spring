@@ -16,3 +16,4 @@ out/
 
 # Eclipse/VSCode Java 빌드 산출물
 bin/
+jdk21-windows-x64.zip
