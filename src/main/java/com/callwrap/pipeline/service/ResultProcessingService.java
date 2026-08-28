@@ -85,6 +85,7 @@ public class ResultProcessingService {
                 .failures(toPipelineFailures(message.failures()))
                 .build();
         analysisResultRepository.save(result);
+        call.recordCounselorNegativeScore(counselorNegativeScore(analysis));
         call.transitionTo(CallStatus.DONE);
     }
 
@@ -115,5 +116,16 @@ public class ResultProcessingService {
         return failureModuleNames.stream()
                 .map(moduleName -> new PipelineFailure(moduleName, null))
                 .toList();
+    }
+
+    private double counselorNegativeScore(AnalysisPayload analysis) {
+        if (analysis.utteranceSentiments() == null) {
+            return 0;
+        }
+        return analysis.utteranceSentiments().stream()
+            .filter(sentiment -> "상담사".equals(sentiment.speaker()) && sentiment.score() < 0)
+            .mapToDouble(sentiment -> -sentiment.score())
+            .average()
+            .orElse(0);
     }
 }

@@ -1,5 +1,6 @@
 package com.callwrap.review.controller;
 
+import com.callwrap.counselor.domain.CounselorRole;
 import com.callwrap.review.domain.CallStatus;
 import com.callwrap.review.dto.FollowupNoteCreateRequest;
 import com.callwrap.review.dto.ReviewConfirmRequest;
@@ -21,6 +22,8 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -58,12 +61,27 @@ public class ReviewController {
     @GetMapping
     public ReviewListResponse list(
             @AuthenticationPrincipal UUID counselorId,
+            Authentication authentication,
             @RequestParam(name = "status", required = false) CallStatus status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(defaultValue = "false") boolean all,
+            @RequestParam(defaultValue = "") String grade,
+            @RequestParam(defaultValue = "") String type,
+            @RequestParam(name = "counselorId", required = false) UUID filterCounselorId,
+            @RequestParam(defaultValue = "") String query,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
+        if (all) {
+            boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(authority -> CounselorRole.ADMIN.name().equals(authority.getAuthority()));
+            if (!isAdmin) {
+                throw new AccessDeniedException("관리자만 전체 상담대장을 조회할 수 있습니다.");
+            }
+            return reviewQueryService.listAll(
+                status, from, to, grade, type, filterCounselorId, query, page, size);
+        }
         return reviewQueryService.list(counselorId, status, from, to, page, size);
     }
 

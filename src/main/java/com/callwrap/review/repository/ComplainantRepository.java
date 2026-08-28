@@ -5,6 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -12,6 +14,14 @@ import java.util.UUID;
 public interface ComplainantRepository extends JpaRepository<Complainant, UUID> {
 
     Optional<Complainant> findByPhone(String phone);
+
+    @Query("SELECT c FROM Complainant c "
+         + "WHERE :query = '' "
+         + "OR LOWER(COALESCE(c.name, '')) LIKE LOWER(CONCAT('%', :query, '%')) "
+         + "OR LOWER(COALESCE(c.phone, '')) LIKE LOWER(CONCAT('%', :query, '%')) "
+         + "OR LOWER(COALESCE(c.org, '')) LIKE LOWER(CONCAT('%', :query, '%')) "
+         + "ORDER BY c.updatedAt DESC")
+    Page<Complainant> search(@Param("query") String query, Pageable pageable);
 
     /**
      * 전화번호로 같은 사람을 찾아 upsert한다 — 동시에 같은(신규) 번호로 콜 두 건이 들어와도

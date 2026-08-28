@@ -2,6 +2,8 @@ package com.callwrap.review.service;
 
 import com.callwrap.analysis.domain.AnalysisResult;
 import com.callwrap.analysis.repository.AnalysisResultRepository;
+import com.callwrap.counselor.domain.Counselor;
+import com.callwrap.counselor.repository.CounselorRepository;
 import com.callwrap.global.common.Judgment;
 import com.callwrap.review.domain.Call;
 import com.callwrap.review.domain.CallStatus;
@@ -25,6 +27,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 /*
@@ -44,6 +47,8 @@ class ReviewQueryServiceTest {
     private ComplainantRepository complainantRepository;
     @Mock
     private FollowupNoteRepository followupNoteRepository;
+    @Mock
+    private CounselorRepository counselorRepository;
     @InjectMocks
     private ReviewQueryService reviewQueryService;
 
@@ -104,6 +109,47 @@ class ReviewQueryServiceTest {
                 assertThat(item.highConfidenceFieldCount()).isZero();
                 assertThat(item.totalFieldCount()).isEqualTo(5);
             });
+    }
+
+    @Test
+    void 관리자_전체_목록에는_상담사와_분류가_포함된다() {
+        UUID counselorId = UUID.randomUUID();
+        Call call = Call.builder()
+            .counselorId(counselorId).audioPath("a.wav").sourceRequestId("SRC-ADMIN-1").build();
+        ReflectionTestUtils.setField(call, "id", UUID.randomUUID());
+        call.transitionTo(CallStatus.CONFIRMED);
+        AnalysisResult analysis = AnalysisResult.builder()
+            .callId(call.getId())
+            .consultationType(Judgment.of("사용법문의", 0.9, List.of(0)))
+            .consultationCategory(Judgment.of("시스템 이용", 0.9, List.of(0)))
+            .consultationSubcategory(Judgment.of("로그인", 0.9, List.of(0)))
+            .grade(Judgment.of("일반", 0.9, List.of(0)))
+            .build();
+        analysis.confirm(counselorId, List.of(), 83);
+        Counselor counselor = Counselor.builder()
+            .loginId("agent1").passwordHash("hash").name("김상담").build();
+        ReflectionTestUtils.setField(counselor, "id", counselorId);
+
+        when(callRepository.searchAdminReviews(
+            eq("CONFIRMED"), any(), any(), eq("일반"), eq("사용법문의"),
+            eq(counselorId.toString()), eq("홍길동"),
+            org.mockito.ArgumentMatchers.any(Pageable.class)))
+            .thenReturn(new PageImpl<>(List.of(call)));
+        when(analysisResultRepository.findByCallIdIn(List.of(call.getId()))).thenReturn(List.of(analysis));
+        when(counselorRepository.findAllById(List.of(counselorId))).thenReturn(List.of(counselor));
+
+        ReviewListResponse result = reviewQueryService.listAll(
+            CallStatus.CONFIRMED, null, null, "일반", "사용법문의", counselorId, "홍길동", 0, 50);
+
+        assertThat(result.items()).singleElement().satisfies(item -> {
+            assertThat(item.counselor()).isNotNull();
+            assertThat(item.counselor().name()).isEqualTo("김상담");
+            assertThat(item.classification()).isNotNull();
+            assertThat(item.classification().type().value()).isEqualTo("사용법문의");
+            assertThat(item.classification().category().value()).isEqualTo("시스템 이용");
+            assertThat(item.classification().subcategory().value()).isEqualTo("로그인");
+            assertThat(item.reviewSec()).isEqualTo(83);
+        });
     }
 
     private AnalysisResult analysisWithTitle(UUID callId, String title) {

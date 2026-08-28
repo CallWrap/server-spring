@@ -13,6 +13,8 @@ public record FaqEntryResponse(
     List<UUID> sampleCallIds,
     String status,
     LocalDateTime generatedAt,
-    LocalDateTime publishedAt
+    LocalDateTime publishedAt,
+    LocalDateTime updatedAt,
+    UUID mergedIntoId
 ) {
 }

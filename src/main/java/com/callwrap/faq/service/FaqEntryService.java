@@ -6,7 +6,11 @@ import com.callwrap.faq.domain.FaqStatus;
 import com.callwrap.faq.dto.FaqEntryCreateRequest;
 import com.callwrap.faq.dto.FaqEntryResponse;
 import com.callwrap.faq.dto.FaqEntryUpdateRequest;
+import com.callwrap.faq.dto.FaqRevisionResponse;
+import com.callwrap.faq.dto.FaqSimilarResponse;
+import com.callwrap.faq.domain.FaqEntryRevision;
 import com.callwrap.faq.repository.FaqEntryRepository;
+import com.callwrap.faq.repository.FaqEntryRevisionRepository;
 import com.callwrap.global.exception.CallWrapException;
 import com.callwrap.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +22,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -36,6 +41,7 @@ public class FaqEntryService {
 
     private final FaqEntryRepository faqEntryRepository;
     private final AnalysisResultRepository analysisResultRepository;
+    private final FaqEntryRevisionRepository faqEntryRevisionRepository;
 
     /**
      * FastAPI가 EXAONE 배치 생성 결과 1건을 넘길 때 호출된다. 같은 소분류 + 질문 문장이 비슷한
@@ -113,10 +119,57 @@ public class FaqEntryService {
     }
 
     @Transactional
-    public FaqEntryResponse update(UUID id, FaqEntryUpdateRequest request) {
+    public FaqEntryResponse update(UUID id, UUID counselorId, FaqEntryUpdateRequest request) {
         FaqEntry entry = getOrThrow(id);
-        entry.edit(request.question(), request.answer());
+        if (!Objects.equals(entry.getQuestion(), request.question())
+            || !Objects.equals(entry.getAnswer(), request.answer())) {
+            faqEntryRevisionRepository.save(FaqEntryRevision.capture(entry, counselorId));
+            entry.edit(request.question(), request.answer());
+        }
         return toResponse(entry);
+    }
+
+    @Transactional(readOnly = true)
+    public List<FaqSimilarResponse> similar(UUID id) {
+        FaqEntry source = getOrThrow(id);
+        return faqEntryRepository
+            .findBySubcategoryAndStatusIn(source.getSubcategory(), MERGEABLE_STATUSES).stream()
+            .filter(candidate -> !candidate.getId().equals(source.getId()))
+            .map(candidate -> new FaqSimilarResponse(
+                candidate.getId(), candidate.getQuestion(), candidate.getSubcategory(),
+                candidate.getStatus().name(), candidate.getUpdatedAt(),
+                wordOverlapSimilarity(source.getQuestion(), candidate.getQuestion())))
+            .sorted(java.util.Comparator.comparingDouble(FaqSimilarResponse::similarity).reversed())
+            .toList();
+    }
+
+    @Transactional
+    public FaqEntryResponse mergeInto(UUID draftId, UUID targetId, UUID counselorId) {
+        FaqEntry draft = getOrThrow(draftId);
+        FaqEntry target = getOrThrow(targetId);
+        boolean invalid = draftId.equals(targetId)
+            || draft.getStatus() != FaqStatus.DRAFT
+            || !MERGEABLE_STATUSES.contains(target.getStatus())
+            || !Objects.equals(draft.getSubcategory(), target.getSubcategory());
+        if (invalid) {
+            throw new CallWrapException(ErrorCode.FAQ_MERGE_INVALID);
+        }
+
+        faqEntryRevisionRepository.save(FaqEntryRevision.capture(target, counselorId));
+        target.edit(draft.getQuestion(), draft.getAnswer());
+        target.absorb(draft.getSourceCallCount(), draft.getSampleCallIds());
+        draft.markMergedInto(targetId, counselorId);
+        return toResponse(target);
+    }
+
+    @Transactional(readOnly = true)
+    public List<FaqRevisionResponse> revisions(UUID id) {
+        getOrThrow(id);
+        return faqEntryRevisionRepository.findByFaqEntryIdOrderByRevisedAtDesc(id).stream()
+            .map(revision -> new FaqRevisionResponse(
+                revision.getId(), revision.getQuestion(), revision.getAnswer(),
+                revision.getRevisedByCounselorId(), revision.getRevisedAt()))
+            .toList();
     }
 
     @Transactional
@@ -142,6 +195,6 @@ public class FaqEntryService {
         return new FaqEntryResponse(
             e.getId(), e.getSubcategory(), e.getQuestion(), e.getAnswer(),
             e.getSourceCallCount(), e.getSampleCallIds(), e.getStatus().name(),
-            e.getGeneratedAt(), e.getPublishedAt());
+            e.getGeneratedAt(), e.getPublishedAt(), e.getUpdatedAt(), e.getMergedIntoId());
     }
 }

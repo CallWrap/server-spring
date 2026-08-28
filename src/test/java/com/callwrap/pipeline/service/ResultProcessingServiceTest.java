@@ -57,7 +57,11 @@ class ResultProcessingServiceTest {
             Judgment.of("요약", 0.9, List.of(0)), Judgment.of("사용법문의", 0.9, List.of(0)),
             Judgment.of("결제및비용지급", 0.9, List.of(0)), Judgment.of("결제방법 및 오류", 0.9, List.of(0)),
             Judgment.of("일반", 0.9, List.of()),
-            List.of(new UtteranceSentiment(3, "상담사", 0.25)),
+            List.of(
+                new UtteranceSentiment(1, "민원인", -1.0),
+                new UtteranceSentiment(2, "상담사", -0.5),
+                new UtteranceSentiment(3, "상담사", -0.1),
+                new UtteranceSentiment(4, "상담사", 0.25)),
             null, Judgment.of(true, 0.9, List.of()));
         ResultMessage message = new ResultMessage(
             "1.0", call.getId(), ResultStatus.DONE, analysis, null, null, List.of(), null, Instant.now());
@@ -67,7 +71,8 @@ class ResultProcessingServiceTest {
         ArgumentCaptor<AnalysisResult> captor = ArgumentCaptor.forClass(AnalysisResult.class);
         verify(analysisResultRepository).save(captor.capture());
         assertThat(captor.getValue().getUtteranceSentiments())
-            .containsExactly(new UtteranceSentiment(3, "상담사", 0.25));
+            .hasSize(4);
+        assertThat(call.getCounselorNegativeScore()).isCloseTo(0.3, org.assertj.core.data.Offset.offset(0.0001));
         assertThat(call.getStatus()).isEqualTo(CallStatus.DONE);
         verify(eventPublisher).publishEvent(new CallStatusChangedEvent(call.getId(), CallStatus.DONE));
     }

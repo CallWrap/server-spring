@@ -1,0 +1,2 @@
+ALTER TABLE counselors
+    ADD COLUMN team VARCHAR(100);

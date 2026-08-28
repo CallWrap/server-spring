@@ -3,6 +3,8 @@ package com.callwrap.review.service;
 import com.callwrap.analysis.domain.AnalysisResult;
 import com.callwrap.analysis.repository.AnalysisResultRepository;
 import com.callwrap.audio.service.AudioUploadService;
+import com.callwrap.counselor.domain.Counselor;
+import com.callwrap.counselor.repository.CounselorRepository;
 import com.callwrap.global.common.Judgment;
 import com.callwrap.global.exception.CallWrapException;
 import com.callwrap.global.exception.ErrorCode;
@@ -53,6 +55,7 @@ public class ReviewQueryService {
     private final AudioUploadService audioUploadService;
     private final ComplainantRepository complainantRepository;
     private final FollowupNoteRepository followupNoteRepository;
+    private final CounselorRepository counselorRepository;
 
     /**
      * 목록은 본인이 받은 콜만 나온다(백엔드_요청사항_상담사화면.md 5번) — counselorId는 JWT에서
@@ -75,12 +78,59 @@ public class ReviewQueryService {
             .collect(Collectors.toMap(Complainant::getId, c -> c));
 
         List<ReviewSummaryResponse> items = result.getContent().stream()
-            .map(c -> toSummary(c, analysisByCallId.get(c.getId()), complainantById.get(c.getComplainantId())))
+            .map(c -> toSummary(
+                c, analysisByCallId.get(c.getId()), complainantById.get(c.getComplainantId()), null))
             .collect(Collectors.toList());
         return new ReviewListResponse(items, page, size, result.getTotalElements());
     }
 
-    private ReviewSummaryResponse toSummary(Call call, AnalysisResult analysis, Complainant complainant) {
+    /** 관리자 상담대장: 상담사 제한 없이 전체 콜을 조건별로 조회한다. */
+    @Transactional(readOnly = true)
+    public ReviewListResponse listAll(
+            CallStatus status, LocalDate from, LocalDate to, String grade, String type,
+            UUID counselorId, String query, int page, int size) {
+        LocalDateTime fromDt = from != null ? from.atStartOfDay() : MIN_DATETIME;
+        LocalDateTime toDt = to != null ? to.plusDays(1).atStartOfDay() : MAX_DATETIME;
+        Page<Call> result = callRepository.searchAdminReviews(
+            status != null ? status.name() : "",
+            fromDt,
+            toDt,
+            normalizeFilter(grade),
+            normalizeFilter(type),
+            counselorId != null ? counselorId.toString() : "",
+            normalizeFilter(query),
+            PageRequest.of(page, size));
+
+        List<UUID> callIds = result.getContent().stream().map(Call::getId).toList();
+        Map<UUID, AnalysisResult> analysisByCallId = analysisResultRepository.findByCallIdIn(callIds).stream()
+            .collect(Collectors.toMap(AnalysisResult::getCallId, a -> a));
+
+        List<UUID> complainantIds = result.getContent().stream()
+            .map(Call::getComplainantId).filter(java.util.Objects::nonNull).distinct().toList();
+        Map<UUID, Complainant> complainantById = complainantRepository.findAllById(complainantIds).stream()
+            .collect(Collectors.toMap(Complainant::getId, c -> c));
+
+        List<UUID> counselorIds = result.getContent().stream()
+            .map(Call::getCounselorId).distinct().toList();
+        Map<UUID, Counselor> counselorById = counselorRepository.findAllById(counselorIds).stream()
+            .collect(Collectors.toMap(Counselor::getId, c -> c));
+
+        List<ReviewSummaryResponse> items = result.getContent().stream()
+            .map(c -> toSummary(
+                c,
+                analysisByCallId.get(c.getId()),
+                complainantById.get(c.getComplainantId()),
+                counselorById.get(c.getCounselorId())))
+            .toList();
+        return new ReviewListResponse(items, page, size, result.getTotalElements());
+    }
+
+    private String normalizeFilter(String value) {
+        return value != null ? value.trim() : "";
+    }
+
+    private ReviewSummaryResponse toSummary(
+            Call call, AnalysisResult analysis, Complainant complainant, Counselor counselor) {
         // Arrays.asList다 — List.of는 null 원소에 NPE를 던진다. AI 분석은 부분 실패를 허용해서
         // (실패한 모듈의 필드는 null) 예를 들어 Ollama가 꺼져 있으면 grade·summary·needsFollowup이
         // 통째로 null로 들어오는데, List.of면 그 순간 대기열 목록 API 전체가 500으로 죽는다.
@@ -105,7 +155,17 @@ public class ReviewQueryService {
             call.getCallDurationSec(),
             call.getCreatedAt(),
             call.getUpdatedAt(),
-            toSummaryComplainantView(complainant));
+            toSummaryComplainantView(complainant),
+            counselor != null
+                ? new ReviewSummaryResponse.CounselorView(counselor.getId(), counselor.getName())
+                : null,
+            analysis != null
+                ? new ReviewSummaryResponse.ClassificationView(
+                    analysis.getConsultationType(),
+                    analysis.getConsultationCategory(),
+                    analysis.getConsultationSubcategory())
+                : null,
+            analysis != null ? analysis.getReviewSec() : null);
     }
 
     private ReviewSummaryResponse.ComplainantView toSummaryComplainantView(Complainant complainant) {

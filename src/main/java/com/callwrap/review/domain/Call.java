@@ -67,6 +67,10 @@ public class Call extends BaseTimeEntity {
     @Column(name = "call_duration_sec")
     private Integer callDurationSec;
 
+    /** 분석 완료 시 한 번 계산해 저장하는 상담사 발화의 평균 부정 강도(0~1). */
+    @Column(name = "counselor_negative_score", nullable = false)
+    private double counselorNegativeScore;
+
     /** 민원인(백엔드_요청사항_상담사화면.md 1번, A안) — complainants 테이블 참조. 정보가 전혀 없으면 null. */
     @Column(name = "complainant_id")
     private UUID complainantId;
@@ -90,5 +94,9 @@ public class Call extends BaseTimeEntity {
 
     public void incrementRetry() {
         this.retryCount++;
+    }
+
+    public void recordCounselorNegativeScore(double score) {
+        this.counselorNegativeScore = Math.max(0, Math.min(1, score));
     }
 }

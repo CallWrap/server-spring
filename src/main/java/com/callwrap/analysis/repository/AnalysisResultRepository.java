@@ -62,6 +62,14 @@ public interface AnalysisResultRepository extends JpaRepository<AnalysisResult, 
         """, nativeQuery = true)
     List<LabelCountProjection> countByConsultationType();
 
+    /** 관리자 대시보드 중분류 분포. 아직 분류되지 않은 결과도 별도 그룹으로 보존한다. */
+    @Query(value = """
+        SELECT COALESCE(ar.consultation_category ->> 'value', '미분류') AS label, COUNT(*) AS cnt
+        FROM analysis_results ar
+        GROUP BY COALESCE(ar.consultation_category ->> 'value', '미분류')
+        """, nativeQuery = true)
+    List<LabelCountProjection> countByConsultationCategory();
+
     /** 확정된 콜의 평균 검토 시간(초). 아직 확정된 콜이 없으면 null. */
     @Query(value = "SELECT AVG(ar.review_sec) FROM analysis_results ar WHERE ar.review_sec IS NOT NULL",
         nativeQuery = true)

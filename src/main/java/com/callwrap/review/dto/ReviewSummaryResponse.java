@@ -23,9 +23,24 @@ public record ReviewSummaryResponse(
     Integer callDurationSec,
     LocalDateTime createdAt,
     LocalDateTime updatedAt,
-    ComplainantView complainant
+    ComplainantView complainant,
+    CounselorView counselor,
+    ClassificationView classification,
+    Integer reviewSec
 ) {
     /** 목록 표의 민원인/소속/전화번호 3개 열용(백엔드_요청사항_상담사화면.md 1번). 없으면 null. */
     public record ComplainantView(String name, String phone, String org) {
+    }
+
+    /** 관리자 상담대장 열에 표시할 담당 상담사. */
+    public record CounselorView(UUID id, String name) {
+    }
+
+    /** 관리자 상담대장 필터·분류 열에 필요한 요약 판정. 상세 전사 데이터는 포함하지 않는다. */
+    public record ClassificationView(
+        Judgment<Object> type,
+        Judgment<Object> category,
+        Judgment<Object> subcategory
+    ) {
     }
 }

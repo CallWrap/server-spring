@@ -75,8 +75,10 @@ UPLOADED → PROCESSING → DONE / NEEDS_HUMAN_REVIEW / FAILED → CONFIRMED
 7. **API 문서화** — springdoc-openapi 기반 Swagger UI, JWT bearer 인증 스킴 포함.
 8. **부하 테스트** — `loadtest/`에 Locust/k6 기반 시나리오(콜 접수→처리 완료까지의 파이프라인 부하) 준비.
 9. **실시간 갱신(SSE)** — 콜 상태가 바뀔 때마다(`PROCESSING`/`DONE`/`NEEDS_HUMAN_REVIEW`/`FAILED`/`CONFIRMED`) `/api/reviews/stream`으로 이벤트를 밀어줘서, 상담사 화면이 폴링 없이 대기열을 갱신한다. `@TransactionalEventListener(AFTER_COMMIT)`로 트랜잭션이 실제로 커밋된 뒤에만 내보낸다.
-10. **관리자 대시보드 집계** — 상태별·등급별·유형별 건수와 평균 검토 시간을 `/api/reviews/stats`에서 DB `GROUP BY`/`AVG`로 직접 계산해 반환한다. 목록 API로 콜을 가져와 프론트에서 세는 대신 이 엔드포인트를 쓴다. 시간대별 처리량(`hourlyThroughput`)과 상담사별 악성콜 분포(`maliciousByCounselor`)도 같은 방식으로 계산해 함께 내려준다.
+10. **관리자 대시보드 집계** — 상태별·등급별·유형별·중분류별 건수와 평균 검토 시간을 `/api/reviews/stats`에서 DB `GROUP BY`/`AVG`로 직접 계산해 반환한다. 목록 API로 콜을 가져와 프론트에서 세는 대신 이 엔드포인트를 쓴다. 시간대별 처리량(`hourlyThroughput`)과 상담사별 악성콜 분포(`maliciousByCounselor`)도 같은 방식으로 계산해 함께 내려준다.
 11. **역할 기반 접근 제어(RBAC)** — 상담사는 콜 검토(대기열·후속처리·처리완료)만, 관리자는 모니터링 대시보드(FAQ 검수 포함)만 쓰도록 화면과 API 양쪽에서 완전히 분리한다. 자세한 구조는 아래 "인증 설계" 참고.
+12. **관리자 운영 조회** — 전체 상담대장과 민원인·상담사 목록/상세/콜 이력을 관리자 전용 API로 제공한다. 상담사 발화의 부정 강도는 분석 완료 시 콜 단위 값으로 저장하고 최근 7일 추이와 상태(`양호`/`주의`/`휴식 권장`)를 계산한다. 상태 기간·임계값은 `callwrap.counselor-health` 설정으로 조정한다.
+13. **FAQ 대조·개정 이력** — 같은 소분류의 기존 FAQ를 질문 유사도순으로 조회하고, 초안을 기존 FAQ에 병합할 때 이전 질문·답변·수정자·수정시각을 `faq_entry_revisions`에 보관한다. 병합된 초안은 `MERGED` 상태와 대상 ID를 남긴다.
 
 ## 인증 설계
 
@@ -100,7 +102,7 @@ UPLOADED → PROCESSING → DONE / NEEDS_HUMAN_REVIEW / FAILED → CONFIRMED
 로그인한 상담사는 `role`(`COUNSELOR` / `ADMIN`) 하나로 접근 범위가 완전히 갈린다. 상담사는 콜 검토(대기열·후속처리·처리완료)만, 관리자는 모니터링 대시보드(FAQ 검수 포함)만 쓴다 — 두 역할의 화면은 서로 겹치지 않는다.
 
 - `role`은 로그인 시 JWT 클레임에 실린다(`JwtTokenProvider.createAccessToken`). `refreshToken`에는 넣지 않고, 재발급(`/api/auth/refresh`) 때마다 DB에서 최신 role을 다시 읽어 새 accessToken에 반영한다 — role이 나중에 바뀌어도 만료 전까지 옛 값이 남지 않는다.
-- `JwtAuthenticationFilter`가 role을 `GrantedAuthority`로 SecurityContext에 심고, `SecurityConfig`가 이를 근거로 인가한다: FAQ 검수(`/api/faq-entries/**`)와 대시보드 통계(`GET /api/reviews/stats`)는 `ADMIN`만, 검토 확정(`PATCH /api/reviews/{id}/confirm`)은 `COUNSELOR`만 호출 가능하다. 나머지(대기열 조회 등)는 역할 무관하게 로그인만 하면 된다 — 두 역할이 함께 쓰는 인프라이기 때문이다.
+- `JwtAuthenticationFilter`가 role을 `GrantedAuthority`로 SecurityContext에 심고, `SecurityConfig`가 이를 근거로 인가한다: FAQ·민원인·상담사 관리와 대시보드 통계는 `ADMIN`만, 검토 확정(`PATCH /api/reviews/{id}/confirm`)은 상담사 화면과 관리자 상담대장 상세에서 함께 쓴다. 전체 상담대장(`GET /api/reviews?all=true`)은 컨트롤러에서도 관리자 권한을 재확인한다.
 - 프론트(`web`)도 같은 role로 사이드바·라우트를 나눠서, 사이드바 링크를 안 보여주는 것을 넘어 주소창 직접 접근도 자기 권한 밖 화면이면 리다이렉트한다. 백엔드 인가 규칙이 최종 방어선이고, 프론트 분리는 UX 차원이다.
 - 회원가입 API가 없는 POC 규모라 관리자 계정을 만들 방법이 마땅치 않았다. `DevAccountSeeder`(`ApplicationRunner`)가 앱 기동 시 `admin`/`admin`(ADMIN), `test`/`test`(COUNSELOR) 계정을 자동 생성한다(`existsByLoginId`로 확인 후 없을 때만 생성) — DB 볼륨이 초기화돼도 재기동만 하면 복구된다.
 
@@ -125,16 +127,25 @@ UPLOADED → PROCESSING → DONE / NEEDS_HUMAN_REVIEW / FAILED → CONFIRMED
 | GET | `/api/users/me` | 로그인한 상담사 정보 조회 | JWT |
 | POST | `/api/audio/upload-url` | 오디오 업로드용 presigned URL 발급 | API Key(사보원) |
 | POST | `/api/reviews` | 콜 접수 — 즉시 202 반환, 분석은 비동기로 트리거 | API Key(사보원) |
-| GET | `/api/reviews` | 검토 목록 조회 (상태 필터, 페이지네이션) | JWT |
+| GET | `/api/reviews` | 검토 목록 조회. 기본은 본인 콜, ADMIN의 `all=true`는 전체 상담대장(기간·등급·유형·상담사·검색 필터) | JWT |
 | GET | `/api/reviews/{reviewId}` | 검토 상세 조회 | JWT |
-| GET | `/api/reviews/stats` | 관리자 대시보드 집계 (상태·등급·유형별 건수, 평균 검토 시간, 시간대별 처리량, 상담사별 악성콜 분포) | JWT(ADMIN) |
+| GET | `/api/reviews/stats` | 관리자 대시보드 집계 (상태·등급·유형·중분류별 건수, 평균 검토 시간, 시간대별 처리량) | JWT(ADMIN) |
 | GET | `/api/reviews/stream` | 콜 상태 변경 실시간 스트림 (SSE) | JWT |
 | PATCH | `/api/reviews/{reviewId}/confirm` | 검토 확정 | JWT(COUNSELOR) |
 | POST | `/api/faq-entries/generate-batch` | FAQ 배치 생성 트리거 (수동, 새벽 4시 자동 실행도 동일 로직) | JWT(ADMIN) |
 | GET | `/api/faq-entries` | FAQ 목록 조회 (상태 필터) | JWT(ADMIN) |
 | PATCH | `/api/faq-entries/{id}` | FAQ 초안 수정 | JWT(ADMIN) |
+| GET | `/api/faq-entries/{id}/similar` | 같은 소분류의 유사 FAQ 조회 | JWT(ADMIN) |
+| POST | `/api/faq-entries/{draftId}/merge-into/{targetId}` | 초안을 기존 FAQ에 병합하고 이전 내용을 이력으로 보관 | JWT(ADMIN) |
+| GET | `/api/faq-entries/{id}/revisions` | FAQ 질문·답변 개정 이력 | JWT(ADMIN) |
 | POST | `/api/faq-entries/{id}/publish` | FAQ 게시 | JWT(ADMIN) |
 | POST | `/api/faq-entries/{id}/discard` | FAQ 폐기 | JWT(ADMIN) |
+| GET | `/api/customers` | 민원인 목록(이름·전화번호·소속 검색, 누적/악성/최근 상담 집계) | JWT(ADMIN) |
+| GET | `/api/customers/{id}` | 민원인 상세(등급별 누계, 최근 6개월 문의 추이, 상위 소분류) | JWT(ADMIN) |
+| GET | `/api/customers/{id}/calls` | 민원인 상담 이력 | JWT(ADMIN) |
+| GET | `/api/counselors` | 상담사별 선택일 처리 집계와 최근 상태 | JWT(ADMIN) |
+| GET | `/api/counselors/{id}` | 상담사 상세·등급 분포·최근 7일 부정 발화 추이 | JWT(ADMIN) |
+| GET | `/api/counselors/{id}/calls` | 상담사의 선택일 담당 콜과 콜별 부정 발화 점수 | JWT(ADMIN) |
 | GET | `/api/internal/faq/candidates` | FAQ 후보 콜 조회 (FastAPI 전용) | API Key(내부) |
 | POST | `/api/internal/faq/entries` | FAQ 초안 등록 (FastAPI 전용) | API Key(내부) |
 
@@ -159,7 +170,8 @@ UPLOADED → PROCESSING → DONE / NEEDS_HUMAN_REVIEW / FAILED → CONFIRMED
 ```
 com.callwrap
 ├── global          # 설정, 보안(JWT), 예외 처리, 공통 타입(BaseTimeEntity, Judgment<T>)
-├── counselor       # 상담사 도메인 — 인증 / 내 정보
+├── counselor       # 상담사 도메인 — 인증 / 내 정보 / 관리자 상담사 현황
+├── customer        # 관리자 민원인 목록 / 상세 / 상담 이력 조회
 ├── review          # 콜(calls) 도메인 — 검토 생성 / 조회 / 확정
 ├── transcript      # 전사 결과 도메인
 ├── qualitycheck    # 품질 게이트 결과 도메인
@@ -192,6 +204,28 @@ Spring 앱은 도커 안이 아니라 호스트에서 `./gradlew bootRun`으로 
 계정은 따로 회원가입할 필요 없이 앱이 처음 뜰 때 자동으로 만들어진다(`DevAccountSeeder`) —
 `admin`/`admin`(관리자), `test`/`test`(상담사). 이미 있으면 건드리지 않는다.
 
+### 시연용 더미 데이터
+
+빈 DB로 띄우면 관리자 화면의 차트·목록이 전부 비어 있어서 의도한 UI를 볼 수 없다.
+아래를 실행하면 상담사 12명 + 민원인 10명 + 콜 815건 + FAQ 106건이 들어간다.
+
+```bash
+docker exec -i callwrap-spring-postgres psql -U callwrap -d callwrap < scripts/demo-data.sql
+```
+
+시연 영상을 찍기 전처럼 화면을 비워야 하면 되돌린다.
+
+```bash
+docker exec -i callwrap-spring-postgres psql -U callwrap -d callwrap < scripts/demo-data-clean.sql
+```
+
+- 넣기 스크립트는 몇 번을 돌려도 안전하다(먼저 지우고 다시 넣는다).
+- 되돌리기는 이 스크립트가 넣은 것만 지운다 — 파이프라인으로 실제 접수한 콜(음성 있는 것)과
+  `admin`/`test` 계정은 남는다.
+- 데모 상담사 12명의 비밀번호는 전부 `demo`다(`demo-kim`, `demo-lee`, …).
+- 앱 기동에 붙어 있지 않다. 예전엔 `AdminDemoDataSeeder`가 `local` 프로필에서 자동으로 심었는데,
+  시연 전에 DB를 비워도 재기동하면 되살아나서 SQL로 분리했다.
+
 필요 환경변수:
 
 | 변수 | 설명 |
@@ -200,4 +234,3 @@ Spring 앱은 도커 안이 아니라 호스트에서 `./gradlew bootRun`으로 
 | `FASTAPI_BASE_URL` | FAQ 배치 생성 트리거 호출 대상 (기본값 `http://localhost:8001`) |
 | `CALLWRAP_API_KEY_INTAKE` | 사회보장정보원 콜 접수 시스템 인증용 (`X-API-Key`) |
 | `CALLWRAP_API_KEY_INTERNAL` | FastAPI 배치 생성기 인증용 (`X-API-Key`). `server-fastapi`의 `SPRING_INTERNAL_API_KEY`와 동일해야 함 |
-

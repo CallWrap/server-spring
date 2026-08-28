@@ -3,6 +3,8 @@ package com.callwrap.faq.controller;
 import com.callwrap.faq.domain.FaqStatus;
 import com.callwrap.faq.dto.FaqEntryResponse;
 import com.callwrap.faq.dto.FaqEntryUpdateRequest;
+import com.callwrap.faq.dto.FaqRevisionResponse;
+import com.callwrap.faq.dto.FaqSimilarResponse;
 import com.callwrap.faq.service.FaqBatchTriggerService;
 import com.callwrap.faq.service.FaqEntryService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -50,8 +52,32 @@ public class FaqController {
 
     @Operation(summary = "FAQ 문항 수정", description = "검수 중 질문/답변을 다듬는다.")
     @PatchMapping("/{id}")
-    public FaqEntryResponse update(@PathVariable UUID id, @Valid @RequestBody FaqEntryUpdateRequest request) {
-        return faqEntryService.update(id, request);
+    public FaqEntryResponse update(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UUID counselorId,
+            @Valid @RequestBody FaqEntryUpdateRequest request) {
+        return faqEntryService.update(id, counselorId, request);
+    }
+
+    @Operation(summary = "유사 FAQ 조회", description = "같은 소분류의 기존 FAQ를 질문 유사도 높은 순으로 반환한다.")
+    @GetMapping("/{id}/similar")
+    public List<FaqSimilarResponse> similar(@PathVariable UUID id) {
+        return faqEntryService.similar(id);
+    }
+
+    @Operation(summary = "기존 FAQ로 병합", description = "기존 FAQ의 이전 내용을 이력으로 보관하고 초안 내용으로 개정한다.")
+    @PostMapping("/{draftId}/merge-into/{targetId}")
+    public FaqEntryResponse mergeInto(
+            @PathVariable UUID draftId,
+            @PathVariable UUID targetId,
+            @AuthenticationPrincipal UUID counselorId) {
+        return faqEntryService.mergeInto(draftId, targetId, counselorId);
+    }
+
+    @Operation(summary = "FAQ 개정 이력", description = "수정 전 질문·답변과 수정자·수정시각을 최신순으로 반환한다.")
+    @GetMapping("/{id}/revisions")
+    public List<FaqRevisionResponse> revisions(@PathVariable UUID id) {
+        return faqEntryService.revisions(id);
     }
 
     @Operation(summary = "FAQ 승인", description = "DRAFT → PUBLISHED. JWT 인증 필요.")

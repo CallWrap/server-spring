@@ -37,6 +37,10 @@ class ReviewStatsServiceTest {
         when(analysisResultRepository.countByConsultationType()).thenReturn(List.of(
             labelCount("미분류", 10L)
         ));
+        when(analysisResultRepository.countByConsultationCategory()).thenReturn(List.of(
+            labelCount("사용법문의", 6L),
+            labelCount("요금문의", 4L)
+        ));
         when(analysisResultRepository.averageReviewSec()).thenReturn(142.5);
         when(analysisResultRepository.getConfidenceStats()).thenReturn(confidenceStats(0L, 0L, null));
 
@@ -46,6 +50,7 @@ class ReviewStatsServiceTest {
         assertThat(stats.statusCounts()).containsEntry("CONFIRMED", 7L).containsEntry("NEEDS_HUMAN_REVIEW", 3L);
         assertThat(stats.gradeCounts()).containsEntry("일반", 8L).containsEntry("악성콜", 2L);
         assertThat(stats.typeCounts()).containsEntry("미분류", 10L);
+        assertThat(stats.categoryCounts()).containsEntry("사용법문의", 6L).containsEntry("요금문의", 4L);
         assertThat(stats.avgReviewSec()).isEqualTo(142.5);
     }
 
@@ -54,6 +59,7 @@ class ReviewStatsServiceTest {
         when(callRepository.countByStatus()).thenReturn(List.of());
         when(analysisResultRepository.countByGrade()).thenReturn(List.of());
         when(analysisResultRepository.countByConsultationType()).thenReturn(List.of());
+        when(analysisResultRepository.countByConsultationCategory()).thenReturn(List.of());
         when(analysisResultRepository.averageReviewSec()).thenReturn(null);
         when(analysisResultRepository.getConfidenceStats()).thenReturn(confidenceStats(0L, 0L, null));
 

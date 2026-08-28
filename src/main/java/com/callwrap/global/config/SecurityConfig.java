@@ -64,9 +64,12 @@ public class SecurityConfig {
                 .requestMatchers("/api/internal/faq/**").hasAuthority(ApiKeyAuthFilter.SCOPE_INTERNAL)
                 // 관리자 전용 — FAQ 검수 화면, 대시보드 집계(개요 탭). 상담사는 접근 자체가 안 되게 막는다.
                 .requestMatchers("/api/faq-entries/**").hasAuthority(CounselorRole.ADMIN.name())
+                .requestMatchers("/api/customers/**").hasAuthority(CounselorRole.ADMIN.name())
+                .requestMatchers("/api/counselors/**").hasAuthority(CounselorRole.ADMIN.name())
                 .requestMatchers(HttpMethod.GET, "/api/reviews/stats").hasAuthority(CounselorRole.ADMIN.name())
-                // 상담사 전용 — 콜 검토 확정. 관리자는 검토 업무를 하지 않는다.
-                .requestMatchers(HttpMethod.PATCH, "/api/reviews/*/confirm").hasAuthority(CounselorRole.COUNSELOR.name())
+                // 상담사 화면과 관리자 상담대장 상세 팝업 모두 검토 내용을 수정·저장할 수 있다.
+                .requestMatchers(HttpMethod.PATCH, "/api/reviews/*/confirm").hasAnyAuthority(
+                    CounselorRole.COUNSELOR.name(), CounselorRole.ADMIN.name())
                 // 나머지(대기열 조회 등)는 역할 상관없이 로그인한 사람이면 됨 (JWT)
                 .anyRequest().authenticated())
             .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)

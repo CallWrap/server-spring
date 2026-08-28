@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -50,12 +51,17 @@ public class ReviewStatsService {
                 AnalysisResultRepository.LabelCountProjection::getLabel,
                 AnalysisResultRepository.LabelCountProjection::getCnt));
 
+        Map<String, Long> categoryCounts = analysisResultRepository.countByConsultationCategory().stream()
+            .collect(Collectors.toMap(
+                AnalysisResultRepository.LabelCountProjection::getLabel,
+                AnalysisResultRepository.LabelCountProjection::getCnt));
+
         Double avgReviewSec = analysisResultRepository.averageReviewSec();
 
-        Map<Integer, Long> hourlyThroughput = callRepository.countTodayByHour().stream()
-            .collect(Collectors.toMap(
-                CallRepository.HourCountProjection::getHour,
-                CallRepository.HourCountProjection::getCnt));
+        List<ReviewStatsResponse.HourlyGrade> hourlyThroughput = callRepository.countTodayByHour().stream()
+            .map(row -> new ReviewStatsResponse.HourlyGrade(
+                row.getHour(), row.getNormal(), row.getPraise(), row.getMalicious()))
+            .toList();
 
         Map<String, Long> maliciousByCounselor = analysisResultRepository.countMaliciousByCounselor().stream()
             .collect(Collectors.toMap(
@@ -70,7 +76,7 @@ public class ReviewStatsService {
             : null;
 
         return new ReviewStatsResponse(totalCalls, statusCounts, inProgressCount, completedCount,
-            gradeCounts, typeCounts, avgReviewSec,
+            gradeCounts, typeCounts, categoryCounts, avgReviewSec,
             hourlyThroughput, maliciousByCounselor, avgConfidence, highConfidenceRate);
     }
 }

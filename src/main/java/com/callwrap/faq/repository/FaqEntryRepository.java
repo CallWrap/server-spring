@@ -5,6 +5,7 @@ import com.callwrap.faq.domain.FaqStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface FaqEntryRepository extends JpaRepository<FaqEntry, UUID> {
@@ -14,6 +15,8 @@ public interface FaqEntryRepository extends JpaRepository<FaqEntry, UUID> {
     List<FaqEntry> findByStatusOrderBySourceCallCountDescGeneratedAtDesc(FaqStatus status);
 
     List<FaqEntry> findAllByOrderBySourceCallCountDescGeneratedAtDesc();
+
+    Optional<FaqEntry> findByQuestion(String question);
 
     /** 병합 대상 탐색용 — 반려(DISCARDED)는 대상에서 뺀다. 상담사가 명시적으로 거절한 걸
      * 배치가 조용히 되살리면 그 판단을 무시하는 셈이 되기 때문. */

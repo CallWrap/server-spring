@@ -1,8 +1,9 @@
 package com.callwrap.faq.domain;
 
-/** DRAFT: EXAONE이 막 생성, 상담사 미검수. PUBLISHED: 검수·승인 완료, 지식베이스 노출. DISCARDED: 검수 후 반려. */
+/** MERGED는 기존 FAQ 개정에 사용된 뒤 종료된 초안이다. */
 public enum FaqStatus {
     DRAFT,
     PUBLISHED,
-    DISCARDED
+    DISCARDED,
+    MERGED
 }

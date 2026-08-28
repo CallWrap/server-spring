@@ -65,6 +65,12 @@ public class FaqEntry {
     @Column(name = "reviewed_by_counselor_id")
     private UUID reviewedByCounselorId;
 
+    @Column(name = "merged_into_id")
+    private UUID mergedIntoId;
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
     private FaqEntry(String subcategory, String question, String answer,
                       Integer sourceCallCount, List<UUID> sampleCallIds) {
         this.subcategory = subcategory;
@@ -74,6 +80,7 @@ public class FaqEntry {
         this.sampleCallIds = sampleCallIds;
         this.status = FaqStatus.DRAFT;
         this.generatedAt = LocalDateTime.now();
+        this.updatedAt = this.generatedAt;
     }
 
     public static FaqEntry draft(String subcategory, String question, String answer,
@@ -85,17 +92,20 @@ public class FaqEntry {
     public void edit(String question, String answer) {
         this.question = question;
         this.answer = answer;
+        touch();
     }
 
     public void publish(UUID counselorId) {
         this.status = FaqStatus.PUBLISHED;
         this.publishedAt = LocalDateTime.now();
         this.reviewedByCounselorId = counselorId;
+        touch();
     }
 
     public void discard(UUID counselorId) {
         this.status = FaqStatus.DISCARDED;
         this.reviewedByCounselorId = counselorId;
+        touch();
     }
 
     /**
@@ -115,5 +125,17 @@ public class FaqEntry {
         // 오래된 것부터 버리고 최근 근거를 우선한다.
         int cap = 50;
         this.sampleCallIds = merged.size() > cap ? merged.subList(merged.size() - cap, merged.size()) : merged;
+        touch();
+    }
+
+    public void markMergedInto(UUID targetId, UUID counselorId) {
+        this.status = FaqStatus.MERGED;
+        this.mergedIntoId = targetId;
+        this.reviewedByCounselorId = counselorId;
+        touch();
+    }
+
+    private void touch() {
+        this.updatedAt = LocalDateTime.now();
     }
 }
