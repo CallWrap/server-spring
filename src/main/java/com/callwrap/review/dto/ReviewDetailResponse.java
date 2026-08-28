@@ -1,5 +1,6 @@
 package com.callwrap.review.dto;
 
+import com.callwrap.analysis.domain.UtteranceSentiment;
 import com.callwrap.global.common.Judgment;
 import com.callwrap.transcript.domain.Utterance;
 
@@ -21,6 +22,7 @@ public record ReviewDetailResponse(
     Judgment<Object> needsFaq,
     String audioUrl,
     List<Utterance> transcript,
+    List<UtteranceSentiment> utteranceSentiments,
     List<String> failures,
     LocalDateTime confirmedAt,
     UUID confirmedByCounselorId,

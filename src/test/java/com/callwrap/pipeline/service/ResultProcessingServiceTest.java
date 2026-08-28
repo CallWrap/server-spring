@@ -1,5 +1,7 @@
 package com.callwrap.pipeline.service;
 
+import com.callwrap.analysis.domain.AnalysisResult;
+import com.callwrap.analysis.domain.UtteranceSentiment;
 import com.callwrap.analysis.repository.AnalysisResultRepository;
 import com.callwrap.global.common.Judgment;
 import com.callwrap.pipeline.event.CallStatusChangedEvent;
@@ -15,6 +17,7 @@ import com.callwrap.transcript.repository.TranscriptRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
@@ -53,13 +56,18 @@ class ResultProcessingServiceTest {
         AnalysisPayload analysis = new AnalysisPayload(
             Judgment.of("요약", 0.9, List.of(0)), Judgment.of("사용법문의", 0.9, List.of(0)),
             Judgment.of("결제및비용지급", 0.9, List.of(0)), Judgment.of("결제방법 및 오류", 0.9, List.of(0)),
-            Judgment.of("일반", 0.9, List.of()), Judgment.of(false, 0.9, List.of()), Judgment.of(true, 0.9, List.of()));
+            Judgment.of("일반", 0.9, List.of()),
+            List.of(new UtteranceSentiment(3, "상담사", 0.25)),
+            null, Judgment.of(true, 0.9, List.of()));
         ResultMessage message = new ResultMessage(
             "1.0", call.getId(), ResultStatus.DONE, analysis, null, null, List.of(), null, Instant.now());
 
         service().process(message);
 
-        verify(analysisResultRepository).save(any());
+        ArgumentCaptor<AnalysisResult> captor = ArgumentCaptor.forClass(AnalysisResult.class);
+        verify(analysisResultRepository).save(captor.capture());
+        assertThat(captor.getValue().getUtteranceSentiments())
+            .containsExactly(new UtteranceSentiment(3, "상담사", 0.25));
         assertThat(call.getStatus()).isEqualTo(CallStatus.DONE);
         verify(eventPublisher).publishEvent(new CallStatusChangedEvent(call.getId(), CallStatus.DONE));
     }

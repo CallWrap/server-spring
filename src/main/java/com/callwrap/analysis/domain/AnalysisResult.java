@@ -69,6 +69,10 @@ public class AnalysisResult {
     private Judgment<Object> grade;
 
     @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "utterance_sentiments", nullable = false, columnDefinition = "jsonb")
+    private List<UtteranceSentiment> utteranceSentiments = List.of();
+
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "needs_followup", columnDefinition = "jsonb")
     private Judgment<Object> needsFollowup;
 
@@ -97,7 +101,8 @@ public class AnalysisResult {
     @Builder
     private AnalysisResult(UUID callId, Judgment<Object> summary, Judgment<Object> consultationType,
                            Judgment<Object> consultationCategory, Judgment<Object> consultationSubcategory,
-                           Judgment<Object> grade, Judgment<Object> needsFollowup, Judgment<Object> needsFaq,
+                           Judgment<Object> grade, List<UtteranceSentiment> utteranceSentiments,
+                           Judgment<Object> needsFollowup, Judgment<Object> needsFaq,
                            List<PipelineFailure> failures) {
         this.callId = callId;
         this.summary = summary;
@@ -105,6 +110,7 @@ public class AnalysisResult {
         this.consultationCategory = consultationCategory;
         this.consultationSubcategory = consultationSubcategory;
         this.grade = grade;
+        this.utteranceSentiments = utteranceSentiments != null ? List.copyOf(utteranceSentiments) : List.of();
         this.needsFollowup = needsFollowup;
         this.needsFaq = needsFaq;
         this.failures = failures;

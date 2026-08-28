@@ -9,7 +9,23 @@
     "schema_version": { "type": "string", "enum": ["1.0"] },
     "call_id": { "type": "string", "format": "uuid" },
     "status": { "type": "string", "enum": ["DONE", "NEEDS_HUMAN_REVIEW", "FAILED"] },
-    "analysis": { "type": ["object", "null"] },
+    "analysis": {
+      "type": ["object", "null"],
+      "properties": {
+        "utterance_sentiments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["utterance_index", "speaker", "score"],
+            "properties": {
+              "utterance_index": { "type": "integer", "minimum": 0 },
+              "speaker": { "type": "string", "enum": ["상담사", "고객"] },
+              "score": { "type": "number", "minimum": -1, "maximum": 1 }
+            }
+          }
+        }
+      }
+    },
     "transcript": { "type": ["object", "null"] },
     "quality": {
       "type": ["object", "null"],

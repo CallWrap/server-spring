@@ -79,6 +79,7 @@ public class ResultProcessingService {
                 .consultationCategory(analysis.consultationCategory())
                 .consultationSubcategory(analysis.consultationSubcategory())
                 .grade(analysis.grade())
+                .utteranceSentiments(analysis.utteranceSentiments())
                 .needsFollowup(analysis.needsFollowup())
                 .needsFaq(analysis.needsFaq())
                 .failures(toPipelineFailures(message.failures()))

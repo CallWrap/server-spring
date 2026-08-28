@@ -180,6 +180,7 @@ public class ReviewQueryService {
             analysis != null ? analysis.getNeedsFaq() : null,
             audioUrl,
             transcript,
+            analysis != null ? analysis.getUtteranceSentiments() : List.of(),
             analysis != null ? toFailureMessages(analysis) : List.of(),
             analysis != null ? analysis.getConfirmedAt() : null,
             analysis != null ? analysis.getConfirmedByCounselorId() : null,

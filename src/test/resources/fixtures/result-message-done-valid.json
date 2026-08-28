@@ -8,7 +8,11 @@
     "consultation_category": null,
     "consultation_subcategory": null,
     "grade": null,
-    "needs_followup": { "value": false, "confidence": 0.9, "evidence_indices": [] },
+    "utterance_sentiments": [
+      { "utterance_index": 0, "speaker": "상담사", "score": 0.2 },
+      { "utterance_index": 1, "speaker": "고객", "score": -0.4 }
+    ],
+    "needs_followup": null,
     "needs_faq": { "value": true, "confidence": 0.9, "evidence_indices": [] }
   },
   "transcript": null,
